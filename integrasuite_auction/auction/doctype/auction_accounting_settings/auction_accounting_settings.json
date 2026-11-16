@@ -1,0 +1,127 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "creation": "2026-11-13 15:11:56.428504",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "auction_account_details_section",
+  "company",
+  "consignment_asset_account",
+  "consignment_control_account",
+  "grower_advances_account",
+  "bidder_receivable_account",
+  "commission_income_account",
+  "registration_fee_income_account",
+  "security_deposit_liability_account",
+  "cash_account",
+  "bank_account"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "consignment_asset_account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Consignment Asset Account",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "consignment_control_account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Consignment Control Account",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "grower_advances_account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Grower Advances Account",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "bidder_receivable_account",
+   "fieldtype": "Link",
+   "label": "Bidder Receivable Account",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "commission_income_account",
+   "fieldtype": "Link",
+   "label": "Commission Income Account",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "registration_fee_income_account",
+   "fieldtype": "Link",
+   "label": "Registration Fee Income Account",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "security_deposit_liability_account",
+   "fieldtype": "Link",
+   "label": "Security Deposit Liability Account",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cash_account",
+   "fieldtype": "Link",
+   "label": "Cash Account",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "bank_account",
+   "fieldtype": "Link",
+   "label": "Bank Account",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "auction_account_details_section",
+   "fieldtype": "Section Break",
+   "label": "Auction Account Details"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-13 16:28:20.169915",
+ "modified_by": "Administrator",
+ "module": "Auction",
+ "name": "Auction Accounting Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

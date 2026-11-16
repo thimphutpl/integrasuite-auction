@@ -2,20 +2,27 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
+ "autoname": "naming_series:",
  "creation": "2026-10-23 13:41:04.561385",
  "doctype": "DocType",
  "engine": "InnoDB",
-  "field_order": [
+ "field_order": [
   "naming_series",
   "supplier_type",
-  "supplier_name",
+  "grower_name",
   "gender",
-  "supplier_tpn_no",
+  "grower_cid",
+  "contact_number",
   "column_break0",
   "supplier_group",
-  "country",
   "is_transporter",
   "image",
+  "grower_display_name",
+  "address_details_section",
+  "country",
+  "dzongkhag",
+  "gewog",
+  "village",
   "defaults_section",
   "default_currency",
   "default_bank_account",
@@ -78,25 +85,15 @@
  ],
  "fields": [
   {
+   "default": "GRO-.YYYY.-",
    "fieldname": "naming_series",
    "fieldtype": "Select",
-   "label": "Series",
+   "label": "Naming Series",
    "no_copy": 1,
    "oldfieldname": "naming_series",
    "oldfieldtype": "Select",
-   "options": "SUP-.YYYY.-",
+   "options": "GRO-.YYYY.-",
    "set_only_once": 1
-  },
-  {
-   "bold": 1,
-   "fieldname": "supplier_name",
-   "fieldtype": "Data",
-   "in_global_search": 1,
-   "label": "Supplier Name",
-   "no_copy": 1,
-   "oldfieldname": "supplier_name",
-   "oldfieldtype": "Data",
-   "reqd": 1
   },
   {
    "fieldname": "country",
@@ -150,7 +147,6 @@
   {
    "fieldname": "image",
    "fieldtype": "Attach Image",
-   "hidden": 1,
    "label": "Image",
    "no_copy": 1,
    "print_hide": 1
@@ -165,7 +161,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Supplier Group",
+   "label": "Grower Group",
    "link_filters": "[[\"Supplier Group\",\"is_group\",\"=\",0]]",
    "oldfieldname": "supplier_type",
    "oldfieldtype": "Link",
@@ -503,18 +499,64 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "supplier_tpn_no",
+   "bold": 1,
+   "fieldname": "grower_name",
    "fieldtype": "Data",
-   "label": "Supplier TPN"
+   "in_global_search": 1,
+   "label": "Grower Name",
+   "no_copy": 1,
+   "oldfieldname": "supplier_name",
+   "oldfieldtype": "Data",
+   "reqd": 1
+  },
+  {
+   "fieldname": "grower_cid",
+   "fieldtype": "Data",
+   "label": "Grower CID"
+  },
+  {
+   "fieldname": "address_details_section",
+   "fieldtype": "Section Break",
+   "label": "Address Details"
+  },
+  {
+   "fieldname": "dzongkhag",
+   "fieldtype": "Link",
+   "label": "Dzongkhag",
+   "options": "Dzongkhag"
+  },
+  {
+   "fieldname": "gewog",
+   "fieldtype": "Link",
+   "label": "Gewog",
+   "options": "Gewog"
+  },
+  {
+   "fieldname": "village",
+   "fieldtype": "Link",
+   "label": "Village",
+   "options": "Village"
+  },
+  {
+   "fieldname": "contact_number",
+   "fieldtype": "Data",
+   "label": "Contact No."
+  },
+  {
+   "fieldname": "grower_display_name",
+   "fieldtype": "Data",
+   "label": "Grower Display Name",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-23 13:41:04.561385",
- "modified_by": "Administrator",
+ "modified": "2026-11-04 11:27:30.440007",
+ "modified_by": "lek.nath@thimphutechpark.bt",
  "module": "Auction",
  "name": "Grower",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
@@ -534,5 +576,6 @@
  "rows_threshold_for_grid_search": 20,
  "sort_field": "creation",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "grower_display_name"
 }

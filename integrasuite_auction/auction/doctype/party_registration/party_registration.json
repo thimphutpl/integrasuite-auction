@@ -2,34 +2,46 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
+ "autoname": "naming_series:",
  "creation": "2026-10-23 16:01:23.088030",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "section_break_26oi",
+  "naming_series",
   "amended_from",
   "registration_date",
-  "column_break_ymjh",
+  "column_break_gadb",
   "auction_location",
-  "column_break_uhlo",
   "branch",
-  "section_break_4hew",
+  "column_break_qsmc",
   "auction_season",
+  "section_break_4hew",
   "party_type",
   "party",
-  "party_cidpassportaadharcardetc",
+  "party_cid",
   "party_name",
+  "column_break_wyuq",
   "image",
+  "contact_no",
+  "address_details_section",
+  "country",
+  "gewog",
+  "column_break_vxmy",
+  "dzongkhag",
+  "village",
   "section_break_veof",
-  "registration_fee",
-  "column_break_jyvp",
   "mode_of_payment",
-  "column_break_glxo",
+  "registration_fee",
   "reference_number",
-  "column_break_bddn",
   "reference_date",
+  "registration_fee_je",
   "section_break_nrzc",
+  "mode_of_paymentsecurity_deposit",
   "security_deposit",
+  "reference_number_copy",
+  "reference_date_copy",
+  "security_deposit_je",
   "remarks"
  ],
  "fields": [
@@ -56,20 +68,12 @@
    "search_index": 1
   },
   {
-   "fieldname": "column_break_ymjh",
-   "fieldtype": "Column Break"
-  },
-  {
    "fieldname": "auction_location",
    "fieldtype": "Link",
    "label": "Auction Location",
    "options": "Warehouse",
    "print_hide": 1,
    "reqd": 1
-  },
-  {
-   "fieldname": "column_break_uhlo",
-   "fieldtype": "Column Break"
   },
   {
    "fieldname": "branch",
@@ -80,7 +84,8 @@
   },
   {
    "fieldname": "section_break_4hew",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Party Information"
   },
   {
    "fieldname": "auction_season",
@@ -106,24 +111,21 @@
   },
   {
    "bold": 1,
-   "fieldname": "party_cidpassportaadharcardetc",
-   "fieldtype": "Data",
-   "label": "Party CID/Passport/AadharCard/etc",
-   "read_only": 1
-  },
-  {
    "fieldname": "party_name",
    "fieldtype": "Data",
-   "label": "Party Name"
+   "label": "Party Name",
+   "read_only": 1
   },
   {
    "fieldname": "image",
    "fieldtype": "Image",
-   "label": "Image"
+   "label": "Image",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_veof",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Registration Fee Details"
   },
   {
    "fieldname": "registration_fee",
@@ -131,18 +133,10 @@
    "label": "Registration Fee"
   },
   {
-   "fieldname": "column_break_jyvp",
-   "fieldtype": "Column Break"
-  },
-  {
    "fieldname": "mode_of_payment",
    "fieldtype": "Link",
-   "label": "Mode of Payment",
+   "label": "Mode of Payment(Registration Fee)",
    "options": "Mode of Payment"
-  },
-  {
-   "fieldname": "column_break_glxo",
-   "fieldtype": "Column Break"
   },
   {
    "fieldname": "reference_number",
@@ -154,17 +148,14 @@
    "search_index": 1
   },
   {
-   "fieldname": "column_break_bddn",
-   "fieldtype": "Column Break"
-  },
-  {
    "fieldname": "reference_date",
    "fieldtype": "Date",
    "label": "Reference Date"
   },
   {
    "fieldname": "section_break_nrzc",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Security Deposit Details"
   },
   {
    "fieldname": "security_deposit",
@@ -175,16 +166,116 @@
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
+  },
+  {
+   "bold": 1,
+   "fieldname": "party_cid",
+   "fieldtype": "Data",
+   "label": "Party CID/Passport/AadharCard/etc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_wyuq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reference_number_copy",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Reference Number",
+   "no_copy": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "reference_date_copy",
+   "fieldtype": "Date",
+   "label": "Reference Date"
+  },
+  {
+   "fieldname": "column_break_gadb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_qsmc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "address_details_section",
+   "fieldtype": "Section Break",
+   "label": "Address Details"
+  },
+  {
+   "fieldname": "country",
+   "fieldtype": "Data",
+   "label": "Country",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gewog",
+   "fieldtype": "Data",
+   "label": "Gewog",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_vxmy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dzongkhag",
+   "fieldtype": "Data",
+   "label": "Dzongkhag",
+   "read_only": 1
+  },
+  {
+   "fieldname": "village",
+   "fieldtype": "Data",
+   "label": "Village",
+   "read_only": 1
+  },
+  {
+   "default": "REG-.YYYY.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "REG-.YYYY.-.#####"
+  },
+  {
+   "fieldname": "contact_no",
+   "fieldtype": "Data",
+   "label": "Contact No.",
+   "read_only": 1
+  },
+  {
+   "fieldname": "registration_fee_je",
+   "fieldtype": "Link",
+   "label": "Registration Fee JE",
+   "options": "Journal Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mode_of_paymentsecurity_deposit",
+   "fieldtype": "Link",
+   "label": "Mode of Payment(Security Deposit)",
+   "options": "Mode of Payment"
+  },
+  {
+   "fieldname": "security_deposit_je",
+   "fieldtype": "Link",
+   "label": "Security Deposit JE",
+   "options": "Journal Entry",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-23 16:37:48.891073",
- "modified_by": "Administrator",
+ "modified": "2026-11-04 14:47:05.315899",
+ "modified_by": "lek.nath@thimphutechpark.bt",
  "module": "Auction",
  "name": "Party Registration",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {

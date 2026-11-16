@@ -2,19 +2,28 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
+ "autoname": "naming_series:",
  "creation": "2026-10-23 13:49:23.023734",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "basic_info",
   "naming_series",
-  "customer_type",
-  "customer_name",
+  "bidder_type",
+  "bidder_name",
+  "bidder_cid",
   "gender",
   "column_break0",
-  "customer_group",
+  "bidder_group",
   "territory",
   "image",
+  "bidder_display_name",
+  "contact_no",
+  "address_details_section",
+  "country",
+  "dzongkhag",
+  "gewog",
+  "village",
   "defaults_tab",
   "default_currency",
   "default_bank_account",
@@ -102,20 +111,8 @@
    "fieldtype": "Select",
    "label": "Series",
    "no_copy": 1,
-   "options": "CUST-.YYYY.-",
+   "options": "BID-.YYYY.-",
    "set_only_once": 1
-  },
-  {
-   "bold": 1,
-   "fieldname": "customer_name",
-   "fieldtype": "Data",
-   "in_global_search": 1,
-   "label": "Customer Name",
-   "no_copy": 1,
-   "oldfieldname": "customer_name",
-   "oldfieldtype": "Data",
-   "reqd": 1,
-   "search_index": 1
   },
   {
    "depends_on": "eval:doc.customer_type == 'Individual'",
@@ -123,16 +120,6 @@
    "fieldtype": "Link",
    "label": "Gender",
    "options": "Gender"
-  },
-  {
-   "default": "Company",
-   "fieldname": "customer_type",
-   "fieldtype": "Select",
-   "label": "Customer Type",
-   "oldfieldname": "customer_type",
-   "oldfieldtype": "Select",
-   "options": "Company\nIndividual\nPartnership",
-   "reqd": 1
   },
   {
    "fieldname": "default_bank_account",
@@ -169,18 +156,6 @@
    "fieldtype": "Link",
    "label": "Account Manager",
    "options": "User"
-  },
-  {
-   "fieldname": "customer_group",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Customer Group",
-   "link_filters": "[[\"Customer Group\", \"is_group\", \"=\", 0]]",
-   "oldfieldname": "customer_group",
-   "oldfieldtype": "Link",
-   "options": "Customer Group",
-   "search_index": 1
   },
   {
    "fieldname": "territory",
@@ -623,15 +598,96 @@
    "fieldname": "supplier_numbers_section",
    "fieldtype": "Section Break",
    "label": "Supplier Numbers"
+  },
+  {
+   "default": "Company",
+   "fieldname": "bidder_type",
+   "fieldtype": "Select",
+   "label": "Bidder Type",
+   "oldfieldname": "customer_type",
+   "oldfieldtype": "Select",
+   "options": "Company\nIndividual\nPartnership",
+   "reqd": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "bidder_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Bidder Name",
+   "no_copy": 1,
+   "oldfieldname": "customer_name",
+   "oldfieldtype": "Data",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "bidder_cid",
+   "fieldtype": "Data",
+   "label": "Bidder CID/AadharCard/Passport/etc",
+   "reqd": 1
+  },
+  {
+   "fieldname": "bidder_group",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Bidder Group",
+   "link_filters": "[[\"Customer Group\", \"is_group\", \"=\", 0]]",
+   "oldfieldname": "customer_group",
+   "oldfieldtype": "Link",
+   "options": "Customer Group",
+   "search_index": 1
+  },
+  {
+   "fieldname": "address_details_section",
+   "fieldtype": "Section Break",
+   "label": "Address Details"
+  },
+  {
+   "fieldname": "country",
+   "fieldtype": "Link",
+   "label": "Country",
+   "options": "Country"
+  },
+  {
+   "fieldname": "dzongkhag",
+   "fieldtype": "Link",
+   "label": "Dzongkhag",
+   "options": "Dzongkhag"
+  },
+  {
+   "fieldname": "gewog",
+   "fieldtype": "Link",
+   "label": "Gewog",
+   "options": "Gewog"
+  },
+  {
+   "fieldname": "village",
+   "fieldtype": "Link",
+   "label": "Village",
+   "options": "Village"
+  },
+  {
+   "fieldname": "bidder_display_name",
+   "fieldtype": "Data",
+   "label": "Bidder Display Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contact_no",
+   "fieldtype": "Data",
+   "label": "Contact No."
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-23 13:49:23.023734",
+ "modified": "2026-11-10 10:01:41.792907",
  "modified_by": "Administrator",
  "module": "Auction",
  "name": "Bidder",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
@@ -651,5 +707,6 @@
  "rows_threshold_for_grid_search": 20,
  "sort_field": "creation",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "bidder_display_name"
 }

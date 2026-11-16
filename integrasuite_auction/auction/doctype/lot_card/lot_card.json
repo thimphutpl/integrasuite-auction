@@ -2,32 +2,66 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
+ "autoname": "LC.YYYY.MM.####",
  "creation": "2026-10-23 16:40:47.920127",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "section_break_pcs2",
   "amended_from",
+  "company",
   "location",
-  "posting_date",
-  "column_break_prue",
   "lot_card_number",
   "activity",
+  "column_break_prue",
+  "posting_date",
+  "branch",
+  "cost_center",
+  "column_break_etnk",
+  "posting_time",
+  "fiscal_year",
+  "is_return",
+  "apply_putaway_rule",
+  "ignore_pricing_rule",
   "section_break_kfmf",
+  "grower_id",
   "grower_name",
-  "dzongkhag",
+  "gewog",
   "village",
   "column_break_iefo",
-  "cidpassportaadharcardetc",
-  "gewog",
+  "grower_cid",
+  "country",
+  "dzongkhag",
   "contact_no",
+  "grower_advance_section",
+  "pay_grower_advance",
+  "column_break_jfan",
+  "advance_amount",
+  "advance_payment_mode",
+  "grower_advance_je",
+  "section_break_hrgw",
+  "conversion_rate",
+  "currency",
+  "plc_conversion_rate",
+  "column_break_yjah",
+  "apply_discount_on",
+  "shipping_rule",
   "section_break_zych",
   "items",
+  "other_charges_section",
+  "loading_charges",
+  "column_break_fmdj",
+  "mode_of_payment",
+  "section_break_vccg",
   "total_quantity",
   "total_net_weight",
+  "base_grand_total",
+  "per_billed",
+  "is_subcontracted",
+  "remarks",
+  "column_break_iwts",
   "total",
-  "net_total",
-  "remarks"
+  "net_total"
  ],
  "fields": [
   {
@@ -39,7 +73,7 @@
    "fieldtype": "Link",
    "label": "Amended From",
    "no_copy": 1,
-   "options": "Lot Crad",
+   "options": "Lot Card",
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
@@ -67,11 +101,13 @@
   {
    "fieldname": "posting_date",
    "fieldtype": "Date",
-   "label": "Posting Date"
+   "label": "Posting Date",
+   "reqd": 1
   },
   {
    "fieldname": "section_break_kfmf",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Grower Details"
   },
   {
    "bold": 1,
@@ -81,43 +117,39 @@
    "read_only": 1
   },
   {
-   "fieldname": "cidpassportaadharcardetc",
+   "fieldname": "dzongkhag",
    "fieldtype": "Data",
-   "label": "CID/Passport/AadharCard/etc",
+   "label": "Dzongkhag",
    "read_only": 1
   },
   {
-   "fieldname": "dzongkhag",
-   "fieldtype": "Link",
-   "label": "Dzongkhag",
-   "options": "Dzongkhag"
-  },
-  {
    "fieldname": "gewog",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "label": "Gewog",
-   "options": "Gewog"
+   "read_only": 1
   },
   {
    "fieldname": "village",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "label": "Village",
-   "options": "Village"
+   "read_only": 1
   },
   {
    "fieldname": "contact_no",
    "fieldtype": "Data",
-   "label": "Contact No."
+   "label": "Contact No.",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_zych",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Auction Items"
   },
   {
    "fieldname": "items",
    "fieldtype": "Table",
    "label": "Items",
-   "options": "Purchase Receipt Item"
+   "options": "Lot Card Item"
   },
   {
    "fieldname": "total_quantity",
@@ -140,8 +172,7 @@
   {
    "fieldname": "net_total",
    "fieldtype": "Currency",
-   "label": "Net Total",
-   "read_only": 1
+   "label": "Net Total"
   },
   {
    "fieldname": "remarks",
@@ -155,16 +186,208 @@
   {
    "fieldname": "column_break_iefo",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "column_break_etnk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "label": "Branch",
+   "options": "Branch",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "branch.cost_center",
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center",
+   "options": "Cost Center"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_return",
+   "fieldtype": "Check",
+   "label": "Is Return"
+  },
+  {
+   "default": "0",
+   "fieldname": "apply_putaway_rule",
+   "fieldtype": "Check",
+   "label": "Apply Putaway Rule"
+  },
+  {
+   "default": "0",
+   "fieldname": "ignore_pricing_rule",
+   "fieldtype": "Check",
+   "label": "Ignore Pricing Rule"
+  },
+  {
+   "fieldname": "base_grand_total",
+   "fieldtype": "Currency",
+   "label": "Grand Total"
+  },
+  {
+   "fieldname": "per_billed",
+   "fieldtype": "Percent",
+   "label": "% Amount Billed"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_subcontracted",
+   "fieldtype": "Check",
+   "label": "Is Subcontracted"
+  },
+  {
+   "fieldname": "section_break_hrgw",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "Rate at which supplier's currency is converted to company's base currency",
+   "fieldname": "conversion_rate",
+   "fieldtype": "Float",
+   "label": "Exchange Rate",
+   "reqd": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency"
+  },
+  {
+   "fieldname": "posting_time",
+   "fieldtype": "Time",
+   "label": "Posting Time",
+   "reqd": 1
+  },
+  {
+   "fieldname": "plc_conversion_rate",
+   "fieldtype": "Float",
+   "label": "Price List Exchange Rate"
+  },
+  {
+   "fieldname": "column_break_yjah",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "apply_discount_on",
+   "fieldtype": "Select",
+   "label": "Apply Additional Discount On",
+   "options": "\nGrand Total\nNet Total"
+  },
+  {
+   "fieldname": "shipping_rule",
+   "fieldtype": "Link",
+   "label": "Shipping Rule",
+   "options": "Shipping Rule"
+  },
+  {
+   "fieldname": "fiscal_year",
+   "fieldtype": "Link",
+   "label": "Fiscal Year",
+   "options": "Fiscal Year"
+  },
+  {
+   "fieldname": "grower_id",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Grower ID",
+   "options": "Grower",
+   "reqd": 1
+  },
+  {
+   "fieldname": "grower_cid",
+   "fieldtype": "Data",
+   "label": "Grower CID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "country",
+   "fieldtype": "Data",
+   "label": "Country",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grower_advance_section",
+   "fieldtype": "Section Break",
+   "label": "Grower Advance "
+  },
+  {
+   "default": "0",
+   "fieldname": "pay_grower_advance",
+   "fieldtype": "Check",
+   "label": "Pay Grower Advance "
+  },
+  {
+   "fieldname": "column_break_jfan",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.pay_grower_advance == 1",
+   "fieldname": "advance_amount",
+   "fieldtype": "Currency",
+   "label": "Advance Amount"
+  },
+  {
+   "depends_on": "eval:doc.pay_grower_advance==1",
+   "fieldname": "advance_payment_mode",
+   "fieldtype": "Link",
+   "label": "Advance Payment Mode",
+   "options": "Mode of Payment"
+  },
+  {
+   "fieldname": "grower_advance_je",
+   "fieldtype": "Link",
+   "label": "Grower Advance JE",
+   "options": "Journal Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_vccg",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_iwts",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "loading_charges",
+   "fieldtype": "Data",
+   "label": "Loading Charges"
+  },
+  {
+   "fieldname": "other_charges_section",
+   "fieldtype": "Section Break",
+   "label": "Other Charges"
+  },
+  {
+   "fieldname": "mode_of_payment",
+   "fieldtype": "Link",
+   "label": "Mode of Payment",
+   "options": "Mode of Payment"
+  },
+  {
+   "fieldname": "column_break_fmdj",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-23 16:54:27.478358",
- "modified_by": "Administrator",
+ "modified": "2026-11-06 10:14:08.687035",
+ "modified_by": "lek.nath@thimphutechpark.bt",
  "module": "Auction",
  "name": "Lot Card",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
