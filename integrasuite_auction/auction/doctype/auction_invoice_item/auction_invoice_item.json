@@ -13,6 +13,7 @@
   "item_name",
   "col_break1",
   "customer_item_code",
+  "lot_card_item",
   "section_break_6",
   "description",
   "brand",
@@ -942,13 +943,21 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "lot_card_item",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Lot Card Item",
+   "no_copy": 1,
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-11-12 10:53:27.077649",
+ "modified": "2026-11-16 13:01:55.306013",
  "modified_by": "Administrator",
  "module": "Auction",
  "name": "Auction Invoice Item",

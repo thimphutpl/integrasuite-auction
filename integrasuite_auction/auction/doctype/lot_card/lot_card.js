@@ -9,14 +9,32 @@ erpnext.accounts.taxes.setup_tax_filters("Purchase Taxes and Charges");
 erpnext.accounts.taxes.setup_tax_validations("Lot Card");
 erpnext.buying.setup_buying_controller();
 
-
 frappe.ui.form.on("Lot Card", {
     refresh(frm) {
+        // Keep the working auction-item filter.
         frm.set_query("item_code", "items", () => ({
             filters: {
                 custom_is_auction_item: 1
             }
         }));
+
+        if (
+            frm.doc.docstatus === 1 &&
+            !frm.doc.is_return &&
+            frappe.model.can_create("Auction Invoice")
+        ) {
+            frm.add_custom_button(
+                __("Auction Invoice"),
+                () => {
+                    frappe.model.open_mapped_doc({
+                        method:
+                            "integrasuite_auction.auction.doctype.auction_invoice.auction_invoice.make_auction_invoice",
+                        frm: frm
+                    });
+                },
+                __("Create")
+            );
+        }
     },
 
     onload_post_render(frm) {
@@ -48,15 +66,21 @@ frappe.ui.form.on("Lot Card", {
 		erpnext.accounts.dimensions.update_dimension(frm, frm.doctype);
 	},
 
+	// toggle_display_account_head: function (frm) {
+	// 	var enabled = erpnext.is_perpetual_inventory_enabled(frm.doc.company);
+	// 	frm.fields_dict["items"].grid.set_column_disp(["cost_center"], enabled);
+	// },
 	toggle_display_account_head: function (frm) {
-		var enabled = erpnext.is_perpetual_inventory_enabled(frm.doc.company);
-		frm.fields_dict["items"].grid.set_column_disp(["cost_center"], enabled);
-	},
+    frm.fields_dict.items.grid.set_column_disp("cost_center", true);
+},
 });
 
-erpnext.stock.PurchaseReceiptController = class PurchaseReceiptController extends (
-	erpnext.buying.BuyingController
-) {
+// erpnext.stock.PurchaseReceiptController = class PurchaseReceiptController extends (
+// 	erpnext.buying.BuyingController)
+erpnext.stock.LotCardController = class LotCardController extends (
+    erpnext.buying.BuyingController
+)
+ {
 	setup(doc) {
 		this.setup_accounting_dimension_triggers();
 		this.setup_posting_date_time_check();
@@ -110,4 +134,34 @@ erpnext.stock.PurchaseReceiptController = class PurchaseReceiptController extend
 	}
 };
 
+
+async function update_lot_card_totals(frm) {
+    if (frm.doc.docstatus !== 0) return;
+
+    await frm.call({
+        doc: frm.doc,
+        method: "calculate_lot_totals"
+    });
+
+    [
+        "items",
+        "total_quantity",
+        "total_net_weight",
+        "total",
+        "net_total",
+        "base_grand_total"
+    ].forEach((fieldname) => frm.refresh_field(fieldname));
+}
+frappe.ui.form.on("Lot Card Item", {
+    qty: update_lot_card_totals,
+    rate: update_lot_card_totals,
+    conversion_factor: update_lot_card_totals,
+    weight_per_unit: update_lot_card_totals,
+    items_add: update_lot_card_totals,
+    items_remove: update_lot_card_totals
+});
+// cur_frm.script_manager.make(erpnext.stock.PurchaseReceiptController);
+cur_frm.script_manager.make(erpnext.stock.LotCardController);
 // frappe.provide("erpnext.buying");
+
+

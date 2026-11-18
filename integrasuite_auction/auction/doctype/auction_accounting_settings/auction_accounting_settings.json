@@ -7,15 +7,16 @@
  "field_order": [
   "auction_account_details_section",
   "company",
-  "consignment_asset_account",
-  "consignment_control_account",
-  "grower_advances_account",
+  "grower_payable_account",
   "bidder_receivable_account",
   "commission_income_account",
   "registration_fee_income_account",
   "security_deposit_liability_account",
+  "warehouse",
   "cash_account",
-  "bank_account"
+  "bank_account",
+  "warehouse_account",
+  "unloading_charges_payable_account"
  ],
  "fields": [
   {
@@ -24,30 +25,6 @@
    "in_list_view": 1,
    "label": "Company",
    "options": "Company",
-   "reqd": 1
-  },
-  {
-   "fieldname": "consignment_asset_account",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Consignment Asset Account",
-   "options": "Account",
-   "reqd": 1
-  },
-  {
-   "fieldname": "consignment_control_account",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Consignment Control Account",
-   "options": "Account",
-   "reqd": 1
-  },
-  {
-   "fieldname": "grower_advances_account",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Grower Advances Account",
-   "options": "Account",
    "reqd": 1
   },
   {
@@ -96,13 +73,37 @@
    "fieldname": "auction_account_details_section",
    "fieldtype": "Section Break",
    "label": "Auction Account Details"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "grower_payable_account",
+   "fieldtype": "Link",
+   "label": "Grower Payable Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "warehouse_account",
+   "fieldtype": "Link",
+   "label": "Warehouse Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "unloading_charges_payable_account",
+   "fieldtype": "Link",
+   "label": "Unloading Charges Payable Account",
+   "options": "Account"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-11-13 16:28:20.169915",
+ "modified": "2026-11-17 11:57:01.417200",
  "modified_by": "Administrator",
  "module": "Auction",
  "name": "Auction Accounting Settings",

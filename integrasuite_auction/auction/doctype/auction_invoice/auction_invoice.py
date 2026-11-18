@@ -100,6 +100,7 @@ class AuctionInvoice(SellingController):
 		items: DF.Table[AuctionInvoiceItem]
 		language: DF.Link | None
 		letter_head: DF.Link | None
+		lot_card: DF.Link
 		lr_date: DF.Date | None
 		lr_no: DF.Data | None
 		named_place: DF.Data | None
@@ -115,7 +116,7 @@ class AuctionInvoice(SellingController):
 		po_no: DF.SmallText | None
 		posting_date: DF.Date
 		posting_time: DF.Time
-		price_list_currency: DF.Link
+		price_list_currency: DF.Link | None
 		pricing_rules: DF.Table[PricingRuleDetail]
 		print_without_amount: DF.Check
 		project: DF.Link | None
@@ -126,7 +127,8 @@ class AuctionInvoice(SellingController):
 		sales_team: DF.Table[SalesTeam]
 		scan_barcode: DF.Data | None
 		select_print_heading: DF.Link | None
-		selling_price_list: DF.Link
+		selling_price_list: DF.Link | None
+		series_copy: DF.Literal["AUC-INV-.YYYY.-"]
 		set_target_warehouse: DF.Link | None
 		set_warehouse: DF.Link | None
 		shipping_address: DF.TextEditor | None
@@ -147,6 +149,7 @@ class AuctionInvoice(SellingController):
 		total_taxes_and_charges: DF.Currency
 		transporter: DF.Link | None
 		transporter_name: DF.Data | None
+		unloading_charges: DF.Currency
 		utm_campaign: DF.Link | None
 		utm_content: DF.Data | None
 		utm_medium: DF.Link | None
@@ -155,133 +158,143 @@ class AuctionInvoice(SellingController):
 		village: DF.Data | None
 	# end: auto-generated types
 
-	# def __init__(self, *args, **kwargs):
-	# 	super().__init__(*args, **kwargs)
-	# 	self.status_updater = [
-	# 		{
-	# 			"source_dt": "Auction Invoice Item",
-	# 			"target_dt": "Sales Order Item",
-	# 			"join_field": "so_detail",
-	# 			"target_field": "delivered_qty",
-	# 			"target_parent_dt": "Sales Order",
-	# 			"target_parent_field": "per_delivered",
-	# 			"target_ref_field": "qty",
-	# 			"source_field": "qty",
-	# 			"percent_join_field": "against_sales_order",
-	# 			"status_field": "delivery_status",
-	# 			"keyword": "Delivered",
-	# 			"second_source_dt": "Sales Invoice Item",
-	# 			"second_source_field": "qty",
-	# 			"second_join_field": "so_detail",
-	# 			"overflow_type": "delivery",
-	# 			"second_source_extra_cond": """ and exists(select name from `tabSales Invoice`
-	# 			where name=`tabSales Invoice Item`.parent and update_stock = 1)""",
-	# 		},
-	# 		{
-	# 			"source_dt": "Auction Invoice Item",
-	# 			"target_dt": "Sales Invoice Item",
-	# 			"join_field": "si_detail",
-	# 			"target_field": "delivered_qty",
-	# 			"target_parent_dt": "Sales Invoice",
-	# 			"target_ref_field": "qty",
-	# 			"source_field": "qty",
-	# 			"percent_join_field": "against_sales_invoice",
-	# 			"overflow_type": "delivery",
-	# 			"no_allowance": 1,
-	# 		},
-	# 		{
-	# 			"source_dt": "Auction Invoice Item",
-	# 			"target_dt": "Pick List Item",
-	# 			"join_field": "pick_list_item",
-	# 			"target_field": "delivered_qty",
-	# 			"target_parent_dt": "Pick List",
-	# 			"target_parent_field": "per_delivered",
-	# 			"target_ref_field": "picked_qty",
-	# 			"source_field": "stock_qty",
-	# 			"percent_join_field": "against_pick_list",
-	# 			"status_field": "delivery_status",
-	# 			"keyword": "Delivered",
-	# 		},
-	# 	]
-	# 	if cint(self.is_return):
-	# 		self.status_updater.extend(
-	# 			[
-	# 				{
-	# 					"source_dt": "Auction Invoice Item",
-	# 					"target_dt": "Sales Order Item",
-	# 					"join_field": "so_detail",
-	# 					"target_field": "returned_qty",
-	# 					"target_parent_dt": "Sales Order",
-	# 					"source_field": "-1 * qty",
-	# 					"second_source_dt": "Sales Invoice Item",
-	# 					"second_source_field": "-1 * qty",
-	# 					"second_join_field": "so_detail",
-	# 					"extra_cond": """ and exists (select name from `tabAuction Invoice `
-	# 				where name=`tabAuction Invoice Item`.parent and is_return=1)""",
-	# 					"second_source_extra_cond": """ and exists (select name from `tabSales Invoice`
-	# 				where name=`tabSales Invoice Item`.parent and is_return=1 and update_stock=1)""",
-	# 				},
-	# 				{
-	# 					"source_dt": "Auction Invoice Item",
-	# 					"target_dt": "Auction Invoice Item",
-	# 					"join_field": "dn_detail",
-	# 					"target_field": "returned_qty",
-	# 					"target_parent_dt": "Auction Invoice ",
-	# 					"target_parent_field": "per_returned",
-	# 					"target_ref_field": "stock_qty",
-	# 					"source_field": "-1 * stock_qty",
-	# 					"percent_join_field_parent": "return_against",
-	# 				},
-	# 			]
-	# 		)
+    
+	@frappe.whitelist()
+	def fetch_lot_card_items(self):
+		self.check_permission("write")
 
-	# def onload(self):
-	# 	super().onload()
+		if self.docstatus != 0:
+			frappe.throw("Items can only be fetched into a draft invoice.")
 
-	# 	if self.docstatus == 0:
-	# 		# self.set_onload("has_unpacked_items", self.has_unpacked_items())
-	# 		pass
+		if not self.lot_card:
+			frappe.throw("Please select a Lot Card.")
 
-	# def before_print(self, settings=None):
-	# 	def toggle_print_hide(meta, fieldname):
-	# 		df = meta.get_field(fieldname)
-	# 		if self.get("print_without_amount"):
-	# 			df.set("__print_hide", 1)
-	# 		else:
-	# 			df.delete_key("__print_hide")
+		lot = frappe.get_doc("Lot Card", self.lot_card)
+		lot.check_permission("read")
 
-	# 	item_meta = frappe.get_meta("Auction Invoice Item")
-	# 	print_hide_fields = {
-	# 		"parent": ["grand_total", "rounded_total", "in_words", "currency", "total", "taxes"],
-	# 		"items": ["rate", "amount", "discount_amount", "price_list_rate", "discount_percentage"],
-	# 	}
+		if lot.docstatus != 1 or lot.get("is_return"):
+			frappe.throw("Please select a submitted, non-return Lot Card.")
 
-	# 	for key, fieldname in print_hide_fields.items():
-	# 		for f in fieldname:
-	# 			toggle_print_hide(self.meta if key == "parent" else item_meta, f)
+		if not lot.items:
+			frappe.throw("The selected Lot Card has no items.")
 
-	# 	super().before_print(settings)
+		if self.company and self.company != lot.company:
+			frappe.throw("Lot Card and Auction Invoice must have the same company.")
 
-	# def set_actual_qty(self):
-	# 	for d in self.get("items"):
-	# 		if d.item_code and d.warehouse:
-	# 			actual_qty = frappe.db.sql(
-	# 				"""select actual_qty from `tabBin`
-	# 				where item_code = %s and warehouse = %s""",
-	# 				(d.item_code, d.warehouse),
-	# 			)
-	# 			d.actual_qty = actual_qty and flt(actual_qty[0][0]) or 0
+		self.company = lot.company
+		self.currency = lot.currency
+		self.conversion_rate = lot.conversion_rate
+		self.cost_center = lot.cost_center
+		self.ignore_pricing_rule = 1
 
-	# def so_required(self):
-	# 	"""check in manage account if sales order required or not"""
-	# 	if frappe.get_single_value("Selling Settings", "so_required") == "Yes":
-	# 		for d in self.get("items"):
-	# 			if not d.against_sales_order:
-	# 				frappe.throw(_("Sales Order required for Item {0}").format(d.item_code))
+		self.set("items", [])
+
+		copy_fields = (
+			"item_code",
+			"item_name",
+			"description",
+			"qty",
+			"uom",
+			"stock_uom",
+			"conversion_factor",
+			"warehouse",
+			"weight_per_unit",
+			"weight_uom",
+			"cost_center",
+			"project",
+		
+		)
+
+		for source in lot.items:
+			row = self.append("items", {
+				field: source.get(field)
+				for field in copy_fields
+			})
+
+			row.lot_card_item = source.name
+			row.rate = flt(source.rate)
+			row.amount = flt(row.qty) * flt(row.rate)
+
+			row.stock_qty = (
+				flt(row.qty) * flt(row.conversion_factor)
+			)
+
+	def validate_whole_lot(self):
+		if not self.lot_card:
+			frappe.throw("Please select a Lot Card.")
+
+		# Serialize invoice validation for this Lot Card so two users
+		# cannot submit separate invoices for the same lot concurrently.
+		frappe.db.sql(
+			"select name from `tabLot Card` where name = %s for update",
+			(self.lot_card,),
+		)
+
+		lot = frappe.get_doc("Lot Card", self.lot_card)
+		lot.check_permission("read")
+
+		if lot.docstatus != 1 or lot.get("is_return"):
+			frappe.throw("Lot Card must be submitted and must not be a return.")
+
+		if self.company != lot.company:
+			frappe.throw("Lot Card and Auction Invoice must have the same company.")
+
+		if self.currency != lot.currency:
+			frappe.throw("Lot Card and Auction Invoice must use the same currency.")
+
+		existing_invoice = frappe.db.get_value(
+			"Auction Invoice",
+			{
+				"lot_card": self.lot_card,
+				"docstatus": 1,
+				"name": ["!=", self.name],
+			},
+			"name",
+		)
+
+		if existing_invoice:
+			frappe.throw(
+				f"This Lot Card is already invoiced through {existing_invoice}."
+			)
+
+		source_rows = {row.name: row for row in lot.items}
+		seen = set()
+
+		if not source_rows or len(self.items) != len(source_rows):
+			frappe.throw("The invoice must contain every Lot Card item.")
+
+		for row in self.items:
+			source = source_rows.get(row.lot_card_item)
+
+			if not source or row.lot_card_item in seen:
+				frappe.throw(
+					f"Row {row.idx}: Invalid or duplicate Lot Card item reference."
+				)
+
+			seen.add(row.lot_card_item)
+
+			for field in ("item_code", "uom", "stock_uom", "warehouse"):
+				if row.get(field) != source.get(field):
+					frappe.throw(
+						f"Row {row.idx}: {field.replace('_', ' ').title()} "
+						"must match the Lot Card."
+					)
+
+			for field in ("qty", "conversion_factor", "rate"):
+				precision = row.precision(field)
+				if flt(row.get(field), precision) != flt(
+					source.get(field), precision
+				):
+					frappe.throw(
+						f"Row {row.idx}: {field.replace('_', ' ').title()} "
+						"cannot be changed."
+					)
 
 	def validate(self):
+		# self.validate_whole_lot()
 		self.validate_posting_time()
 		super().validate()
+		self.validate_whole_lot()
 		self.calculate_item_amounts()#added by me for calculating item amounts
 		# self.validate_references()
 		#self.set_status()
@@ -309,108 +322,6 @@ class AuctionInvoice(SellingController):
 	def get_auction_account(self, fieldname):
 		return LotCard.get_auction_account(self, fieldname)
 	
-#Added by me for bypassing the customer address validation in the auction invoice doctype
-	#def set_customer_address(self):
-		#pass
-
-	# def validate_with_previous_doc(self):
-	# 	super().validate_with_previous_doc(
-	# 		{
-	# 			"Sales Order": {
-	# 				"ref_dn_field": "against_sales_order",
-	# 				"compare_fields": [
-	# 					["customer", "="],
-	# 					["company", "="],
-	# 					["project", "="],
-	# 					["currency", "="],
-	# 				],
-	# 			},
-	# 			"Sales Order Item": {
-	# 				"ref_dn_field": "so_detail",
-	# 				"compare_fields": [["item_code", "="], ["uom", "="], ["conversion_factor", "="]],
-	# 				"is_child_table": True,
-	# 				"allow_duplicate_prev_row_id": True,
-	# 			},
-	# 			"Sales Invoice": {
-	# 				"ref_dn_field": "against_sales_invoice",
-	# 				"compare_fields": [
-	# 					["customer", "="],
-	# 					["company", "="],
-	# 					["project", "="],
-	# 					["currency", "="],
-	# 				],
-	# 			},
-	# 			"Sales Invoice Item": {
-	# 				"ref_dn_field": "si_detail",
-	# 				"compare_fields": [["item_code", "="], ["uom", "="], ["conversion_factor", "="]],
-	# 				"is_child_table": True,
-	# 				"allow_duplicate_prev_row_id": True,
-	# 			},
-	# 		}
-	# 	)
-
-	# 	if (
-	# 		cint(frappe.get_single_value("Selling Settings", "maintain_same_sales_rate"))
-	# 		and not self.is_return
-	# 		and not self.is_internal_customer
-	# 	):
-	# 		self.validate_rate_with_reference_doc(
-	# 			[
-	# 				["Sales Order", "against_sales_order", "so_detail"],
-	# 				["Sales Invoice", "against_sales_invoice", "si_detail"],
-	# 			]
-	# 		)
-
-	# def validate_references(self):
-	# 	self.validate_sales_order_references()
-	# 	self.validate_sales_invoice_references()
-
-	# def validate_sales_order_references(self):
-	# 	self._validate_dependent_item_fields(
-	# 		"against_sales_order", "so_detail", _("References to Sales Orders are Incomplete")
-	# 	)
-
-	# def validate_sales_invoice_references(self):
-	# 	if self.is_return:
-	# 		return
-
-	# 	self._validate_dependent_item_fields(
-	# 		"against_sales_invoice", "si_detail", _("References to Sales Invoices are Incomplete")
-	# 	)
-
-	# def _validate_dependent_item_fields(self, field_a: str, field_b: str, error_title: str):
-	# 	errors = []
-	# 	for item in self.items:
-	# 		missing_label = None
-	# 		if item.get(field_a) and not item.get(field_b):
-	# 			missing_label = item.meta.get_label(field_b)
-	# 		elif item.get(field_b) and not item.get(field_a):
-	# 			missing_label = item.meta.get_label(field_a)
-
-	# 		if missing_label and missing_label != "No Label":
-	# 			errors.append(
-	# 				_("The field {0} in row {1} is not set").format(
-	# 					frappe.bold(_(missing_label)), frappe.bold(item.idx)
-	# 				)
-	# 			)
-
-	# 	if errors:
-	# 		frappe.throw("<br>".join(errors), title=error_title)
-
-	# def validate_proj_cust(self):
-	# 	"""check for does customer belong to same project as entered.."""
-	# 	if self.project and self.customer:
-	# 		res = frappe.db.sql(
-	# 			"""select name from `tabProject`
-	# 			where name = %s and (customer = %s or
-	# 				ifnull(customer,'')='')""",
-	# 			(self.project, self.customer),
-	# 		)
-	# 		if not res:
-	# 			frappe.throw(
-	# 				_("Customer {0} does not belong to project {1}").format(self.customer, self.project)
-	# 			)
-
 	def validate_warehouse(self):
 		super().validate_warehouse()
 
@@ -451,8 +362,9 @@ class AuctionInvoice(SellingController):
 	def on_submit(self):
 		#self.validate_packed_qty()
 		#self.update_pick_list_status()
-		self.create_consignment_gl_entries()#Added by me for creating consignment gl entries
-		self.create_commission_gl_entries()
+		# self.create_consignment_gl_entries()#Added by me for creating consignment gl entries
+		# self.create_commission_gl_entries()
+		self.create_auction_gl_entries()
 
 		# Check for Approving Authority
 		frappe.get_cached_doc("Authorization Control").validate_approving_authority(
@@ -489,9 +401,9 @@ class AuctionInvoice(SellingController):
 
 	def on_cancel(self):
 		super().on_cancel()
-		self.cancel_consignment_gl_entries()#Added by me for cancelling consignment gl entries
-		self.cancel_commission_gl_entries()
-
+		# self.cancel_consignment_gl_entries()#Added by me for cancelling consignment gl entries
+		# self.cancel_commission_gl_entries()
+		self.cancel_auction_gl_entries()
 		#self.check_sales_order_on_hold_or_close("against_sales_order")
 		#self.check_next_docstatus()
 
@@ -519,313 +431,128 @@ class AuctionInvoice(SellingController):
 
 		#self.delete_auto_created_batches()
 
-	# def validate_against_stock_reservation_entries(self):
-	# 	"""Validates if Stock Reservation Entries are available for the Sales Order Item reference."""
-
-	# 	from erpnext.stock.doctype.stock_reservation_entry.stock_reservation_entry import (
-	# 		get_sre_reserved_warehouses_for_voucher,
-	# 	)
-
-	# 	# Don't validate if Return
-	# 	if self.is_return:
-	# 		return
-
-	# 	for item in self.get("items"):
-	# 		# Skip if `Sales Order` or `Sales Order Item` reference is not set.
-	# 		if not item.against_sales_order or not item.so_detail:
-	# 			continue
-
-	# 		reserved_warehouses = get_sre_reserved_warehouses_for_voucher(
-	# 			"Sales Order", item.against_sales_order, item.so_detail
-	# 		)
-
-	# 		# Skip if stock is not reserved.
-	# 		if not reserved_warehouses:
-	# 			continue
-
-	# 		# Set `Warehouse` from SRE if not set.
-	# 		if not item.warehouse:
-	# 			item.warehouse = reserved_warehouses[0]
-	# 		else:
-	# 			# Throw if `Warehouse` not in Reserved Warehouses.
-	# 			if item.warehouse not in reserved_warehouses:
-	# 				msg = _("Row #{0}: Stock is reserved for item {1} in warehouse {2}.").format(
-	# 					item.idx,
-	# 					frappe.bold(item.item_code),
-	# 					frappe.bold(reserved_warehouses[0])
-	# 					if len(reserved_warehouses) == 1
-	# 					else _("{0} and {1}").format(
-	# 						frappe.bold(", ".join(reserved_warehouses[:-1])),
-	# 						frappe.bold(reserved_warehouses[-1]),
-	# 					),
-	# 				)
-	# 				frappe.throw(msg, title=_("Stock Reservation Warehouse Mismatch"))
-
-	# def check_credit_limit(self):
-	# 	from erpnext.selling.doctype.customer.customer import check_credit_limit
-
-	# 	if self.per_billed == 100:
-	# 		return
-
-	# 	extra_amount = 0
-	# 	validate_against_credit_limit = False
-	# 	bypass_credit_limit_check_at_sales_order = cint(
-	# 		frappe.db.get_value(
-	# 			"Customer Credit Limit",
-	# 			filters={"parent": self.customer, "parenttype": "Customer", "company": self.company},
-	# 			fieldname="bypass_credit_limit_check",
-	# 		)
-	# 	)
-
-	# 	if bypass_credit_limit_check_at_sales_order:
-	# 		for d in self.get("items"):
-	# 			if not d.against_sales_invoice:
-	# 				validate_against_credit_limit = True
-	# 				extra_amount = self.base_grand_total
-	# 				break
-	# 	else:
-	# 		for d in self.get("items"):
-	# 			if not (d.against_sales_order or d.against_sales_invoice):
-	# 				validate_against_credit_limit = True
-	# 				break
-
-	# 	if validate_against_credit_limit:
-	# 		check_credit_limit(
-	# 			self.customer, self.company, bypass_credit_limit_check_at_sales_order, extra_amount
-	# 		)
-
-	# def validate_packed_qty(self):
-	# 	"""Validate that if packed qty exists, it should be equal to qty"""
-
-	# 	if frappe.db.exists("Packing Slip", {"docstatus": 1, "delivery_note": self.name}):
-	# 		product_bundle_list = self.get_product_bundle_list()
-	# 		for item in self.items + self.packed_items:
-	# 			if (
-	# 				item.item_code not in product_bundle_list
-	# 				and flt(item.packed_qty)
-	# 				and flt(item.packed_qty) != flt(item.qty)
-	# 			):
-	# 				frappe.throw(
-	# 					_("Row {0}: Packed Qty must be equal to {1} Qty.").format(
-	# 						item.idx, frappe.bold(item.doctype)
-	# 					)
-	# 				)
-
-	# def check_next_docstatus(self):
-	# 	submit_rv = frappe.db.sql(
-	# 		"""select t1.name
-	# 		from `tabSales Invoice` t1,`tabSales Invoice Item` t2
-	# 		where t1.name = t2.parent and t2.delivery_note = %s and t1.docstatus = 1""",
-	# 		(self.name),
-	# 	)
-	# 	if submit_rv:
-	# 		frappe.throw(_("Sales Invoice {0} has already been submitted").format(submit_rv[0][0]))
-
-	# 	submit_in = frappe.db.sql(
-	# 		"""select t1.name
-	# 		from `tabInstallation Note` t1, `tabInstallation Note Item` t2
-	# 		where t1.name = t2.parent and t2.prevdoc_docname = %s and t1.docstatus = 1""",
-	# 		(self.name),
-	# 	)
-	# 	if submit_in:
-	# 		frappe.throw(_("Installation Note {0} has already been submitted").format(submit_in[0][0]))
-
-	# def cancel_packing_slips(self):
-	# 	"""
-	# 	Cancel submitted packing slips related to this Auction Invoice 
-	# 	"""
-	# 	res = frappe.db.sql(
-	# 		"""SELECT name FROM `tabPacking Slip` WHERE delivery_note = %s
-	# 		AND docstatus = 1""",
-	# 		self.name,
-	# 	)
-
-	# 	if res:
-	# 		for r in res:
-	# 			ps = frappe.get_doc("Packing Slip", r[0])
-	# 			ps.cancel()
-	# 		frappe.msgprint(_("Packing Slip(s) cancelled"))
-
-	# def update_status(self, status):
-	# 	self.set_status(update=True, status=status)
-	# 	self.notify_update()
-	# 	clear_doctype_notifications(self)
-
-	# def update_billing_status(self, update_modified=True):
-	# 	updated_delivery_notes = [self.name]
-	# 	if self.is_return and self.return_against:
-	# 		updated_delivery_notes.append(self.return_against)
-
-	# 	for d in self.get("items"):
-	# 		if d.si_detail and not d.so_detail:
-	# 			d.db_set("billed_amt", d.amount, update_modified=update_modified)
-	# 		elif d.so_detail:
-	# 			updated_delivery_notes += update_billed_amount_based_on_so(d.so_detail, update_modified)
-
-	# 	for dn in set(updated_delivery_notes):
-	# 		dn_doc = self if (dn == self.name) else frappe.get_lazy_doc("Auction Invoice ", dn)
-	# 		update_dn_modified = update_modified and dn != self.return_against
-	# 		dn_doc.update_billing_percentage(update_modified=update_dn_modified)
-
-	# 	self.load_from_db()
-
-	# def make_return_invoice(self):
-	# 	try:
-	# 		return_invoice = make_sales_invoice(self.name)
-	# 		return_invoice.is_return = True
-	# 		return_invoice.save()
-	# 		return_invoice.submit()
-
-	# 		credit_note_link = frappe.utils.get_link_to_form("Sales Invoice", return_invoice.name)
-
-	# 		frappe.msgprint(_("Credit Note {0} has been created automatically").format(credit_note_link))
-	# 	except Exception:
-	# 		frappe.throw(
-	# 			_(
-	# 				"Could not create Credit Note automatically, please uncheck 'Issue Credit Note' and submit again"
-	# 			)
-	# 		)
-
-	# def has_unpacked_items(self):
-	# 	product_bundle_list = self.get_product_bundle_list()
-
-	# 	for item in self.items + self.packed_items:
-	# 		if item.item_code not in product_bundle_list and flt(item.packed_qty) < flt(item.qty):
-	# 			return True
-
-	# 	return False
-
-	# def get_product_bundle_list(self):
-	# 	items_list = [item.item_code for item in self.items]
-	# 	return frappe.db.get_all(
-	# 		"Product Bundle",
-	# 		filters={"new_item_code": ["in", items_list], "disabled": 0},
-	# 		pluck="name",
-	# 	)
-
-
 	# Added by me for calculating item amounts
+	# def calculate_item_amounts(self):
+	# 	total_amount = 0
+
+	# 	for row in self.items:
+	# 		qty = flt(row.qty)
+	# 		rate = flt(row.rate)
+
+	# 		row.amount = flt(qty * rate, row.precision("amount"))
+	# 		total_amount += row.amount
+
+	# 	self.total = flt(total_amount, self.precision("total"))
+	# 	self.net_total = flt(total_amount, self.precision("net_total"))
 	def calculate_item_amounts(self):
+		company_currency = frappe.get_cached_value(
+			"Company", self.company, "default_currency"
+		)
+
+		if (
+			self.currency != company_currency
+			or flt(self.conversion_rate) != 1
+		):
+			frappe.throw(
+				"This auction posting supports company currency only."
+			)
+
+		# This calculation does not include separate taxes or discounts.
+		if (
+			self.get("taxes")
+			or flt(self.get("discount_amount"))
+			or flt(self.get("additional_discount_percentage"))
+		):
+			frappe.throw(
+				"Separate taxes and discounts are not supported "
+				"in this auction calculation."
+			)
+
+		if flt(self.commission_percent) < 0:
+			frappe.throw("Commission percentage cannot be negative.")
+
+		if flt(self.unloading_charges) < 0:
+			frappe.throw("Unloading charges cannot be negative.")
+
 		total_amount = 0
+		total_qty = 0
 
 		for row in self.items:
-			qty = flt(row.qty)
-			rate = flt(row.rate)
+			row.amount = flt(
+				flt(row.qty) * flt(row.rate),
+				row.precision("amount"),
+			)
 
-			row.amount = flt(qty * rate, row.precision("amount"))
+			row.base_rate = flt(row.rate)
+			row.base_amount = row.amount
+			row.net_rate = flt(row.rate)
+			row.net_amount = row.amount
+			row.base_net_rate = flt(row.rate)
+			row.base_net_amount = row.amount
+
+			row.stock_qty = (
+				flt(row.qty) * flt(row.conversion_factor)
+			)
+
 			total_amount += row.amount
+			total_qty += flt(row.qty)
 
-		self.total = flt(total_amount, self.precision("total"))
-		self.net_total = flt(total_amount, self.precision("net_total"))
-	
-	# def create_consignment_gl_entries(self):
-	# 	from erpnext.accounts.general_ledger import make_gl_entries
+		self.total = flt(
+			total_amount, self.precision("total")
+		)
+		self.net_total = self.total
+		self.base_total = self.total
+		self.base_net_total = self.total
+		self.total_qty = total_qty
 
-	# 	amount = sum(flt(row.qty) * flt(row.rate) for row in self.items)
-	# 	amount = flt(amount, self.precision("grand_total"))
+		if self.total <= 0:
+			frappe.throw("Lot Card item value must be greater than zero.")
 
-	# 	if amount <= 0:
-	# 		frappe.throw("Auction Invoice stock-out value must be greater than zero.")
+		self.commission_amount = flt(
+			self.total * flt(self.commission_percent) / 100,
+			self.precision("commission_amount"),
+		)
 
-	# 	asset_account = frappe.db.get_value(
-	# 		"Account",
-	# 		{
-	# 			"account_name": "Auction Consignment Asset",
-	# 			"company": self.company,
-	# 			"is_group": 0,
-	# 		},
-	# 		"name",
-	# 	)
+		self.unloading_charges = flt(
+			self.unloading_charges,
+			self.precision("unloading_charges"),
+		)
 
-	# 	control_account = frappe.db.get_value(
-	# 		"Account",
-	# 		{
-	# 			"account_name": "Auction Consignment Control",
-	# 			"company": self.company,
-	# 			"is_group": 0,
-	# 		},
-	# 		"name",
-	# 	)
+		self.grand_total = flt(
+        self.total,
+        self.precision("grand_total"),
+)
+		self.base_grand_total = self.grand_total
 
-	# 	if not asset_account:
-	# 		frappe.throw("Auction Consignment Asset account not found.")
-
-	# 	if not control_account:
-	# 		frappe.throw("Auction Consignment Control account not found.")
-
-	# 	gl_entries = [
-	# 		{
-	# 			"account": control_account,
-	# 			"debit": amount,
-	# 			"debit_in_account_currency": amount,
-	# 			"credit": 0,
-	# 			"credit_in_account_currency": 0,
-	# 			"against": asset_account,
-	# 		},
-	# 		{
-	# 			"account": asset_account,
-	# 			"debit": 0,
-	# 			"debit_in_account_currency": 0,
-	# 			"credit": amount,
-	# 			"credit_in_account_currency": amount,
-	# 			"against": control_account,
-	# 		},
-	# 	]
-
-	# 	for entry in gl_entries:
-	# 		entry.update(
-	# 			{
-	# 				"company": self.company,
-	# 				"posting_date": self.posting_date,
-	# 				"voucher_type": self.doctype,
-	# 				"voucher_no": self.name,
-	# 				"fiscal_year": self.fiscal_year,
-	# 				"cost_center": self.cost_center,
-	# 				"is_opening": "No",
-	# 			}
-	# 		)
-
-	# 	make_gl_entries(
-	# 		[frappe._dict(entry) for entry in gl_entries],
-	# 		merge_entries=False,
-	# 	)
-
+		# Keep rounded totals consistent with the custom calculation.
+		self.disable_rounded_total = 1
+		self.rounding_adjustment = 0
+		self.base_rounding_adjustment = 0
+		self.rounded_total = self.grand_total
+		self.base_rounded_total = self.grand_total
 
 	# def create_consignment_gl_entries(self):
 	# 	from erpnext.accounts.general_ledger import make_gl_entries
 	# 	from erpnext.accounts.utils import get_fiscal_year
 
-	# 	amount = sum(flt(row.qty) * flt(row.rate) for row in self.items)
+	# 	amount = sum(
+	# 		flt(row.qty) * flt(row.rate)
+	# 		for row in self.items
+	# 	)
 	# 	amount = flt(amount, self.precision("grand_total"))
 
 	# 	if amount <= 0:
-	# 		frappe.throw("Auction Invoice stock-out value must be greater than zero.")
+	# 		frappe.throw(
+	# 			"Auction Invoice stock-out value must be greater than zero."
+	# 		)
 
-	# 	asset_account = frappe.db.get_value(
-	# 		"Account",
-	# 		{
-	# 			"account_name": "Auction Consignment Asset",
-	# 			"company": self.company,
-	# 			"is_group": 0,
-	# 		},
-	# 		"name",
+	# 	# Use the existing Lot Card helper.
+	# 	asset_account = self.get_auction_account(
+	# 		"consignment_asset_account"
 	# 	)
-
-	# 	control_account = frappe.db.get_value(
-	# 		"Account",
-	# 		{
-	# 			"account_name": "Auction Consignment Control",
-	# 			"company": self.company,
-	# 			"is_group": 0,
-	# 		},
-	# 		"name",
+	# 	control_account = self.get_auction_account(
+	# 		"consignment_control_account"
 	# 	)
-
-	# 	if not asset_account:
-	# 		frappe.throw("Auction Consignment Asset account not found.")
-
-	# 	if not control_account:
-	# 		frappe.throw("Auction Consignment Control account not found.")
 
 	# 	fiscal_year = get_fiscal_year(
 	# 		self.posting_date,
@@ -833,6 +560,7 @@ class AuctionInvoice(SellingController):
 	# 	)[0]
 
 	# 	gl_entries = [
+	# 		# Debit Consignment Control.
 	# 		{
 	# 			"account": control_account,
 	# 			"debit": amount,
@@ -841,6 +569,7 @@ class AuctionInvoice(SellingController):
 	# 			"credit_in_account_currency": 0,
 	# 			"against": asset_account,
 	# 		},
+	# 		# Credit Consignment Asset.
 	# 		{
 	# 			"account": asset_account,
 	# 			"debit": 0,
@@ -866,179 +595,64 @@ class AuctionInvoice(SellingController):
 	# 		[frappe._dict(entry) for entry in gl_entries],
 	# 		merge_entries=False,
 	# 	)
-
-	def create_consignment_gl_entries(self):
-		from erpnext.accounts.general_ledger import make_gl_entries
-		from erpnext.accounts.utils import get_fiscal_year
-
-		amount = sum(
-			flt(row.qty) * flt(row.rate)
-			for row in self.items
-		)
-		amount = flt(amount, self.precision("grand_total"))
-
-		if amount <= 0:
-			frappe.throw(
-				"Auction Invoice stock-out value must be greater than zero."
-			)
-
-		# Use the existing Lot Card helper.
-		asset_account = self.get_auction_account(
-			"consignment_asset_account"
-		)
-		control_account = self.get_auction_account(
-			"consignment_control_account"
-		)
-
-		fiscal_year = get_fiscal_year(
-			self.posting_date,
-			company=self.company,
-		)[0]
-
-		gl_entries = [
-			# Debit Consignment Control.
-			{
-				"account": control_account,
-				"debit": amount,
-				"debit_in_account_currency": amount,
-				"credit": 0,
-				"credit_in_account_currency": 0,
-				"against": asset_account,
-			},
-			# Credit Consignment Asset.
-			{
-				"account": asset_account,
-				"debit": 0,
-				"debit_in_account_currency": 0,
-				"credit": amount,
-				"credit_in_account_currency": amount,
-				"against": control_account,
-			},
-		]
-
-		for entry in gl_entries:
-			entry.update({
-				"company": self.company,
-				"posting_date": self.posting_date,
-				"voucher_type": self.doctype,
-				"voucher_no": self.name,
-				"fiscal_year": fiscal_year,
-				"cost_center": self.cost_center,
-				"is_opening": "No",
-			})
-
-		make_gl_entries(
-			[frappe._dict(entry) for entry in gl_entries],
-			merge_entries=False,
-		)
 	
 	# def cancel_consignment_gl_entries(self):
 	# 	from erpnext.accounts.general_ledger import make_reverse_gl_entries
 
-	# 	accounts = frappe.get_all(
-	# 		"Account",
-	# 		filters={
-	# 			"account_name": [
-	# 				"in",
-	# 				[
-	# 					"Auction Consignment Asset",
-	# 					"Auction Consignment Control",
-	# 				],
-	# 			],
-	# 			"company": self.company,
-	# 			"is_group": 0,
-	# 		},
-	# 		pluck="name",
-	# 	)
-
-	# 	if not accounts:
-	# 		return
+	# 	accounts = [
+	# 		self.get_auction_account("consignment_asset_account"),
+	# 		self.get_auction_account("consignment_control_account"),
+	# 	]
 
 	# 	gl_entries = frappe.get_all(
 	# 		"GL Entry",
 	# 		filters={
 	# 			"voucher_type": self.doctype,
 	# 			"voucher_no": self.name,
+	# 			"company": self.company,
 	# 			"account": ["in", accounts],
 	# 			"is_cancelled": 0,
 	# 		},
-	# 		#fields=["name"],
 	# 		fields=["*"],
 	# 	)
 
 	# 	if gl_entries:
 	# 		make_reverse_gl_entries(gl_entries)
 
-	def cancel_consignment_gl_entries(self):
-		from erpnext.accounts.general_ledger import make_reverse_gl_entries
-
-		accounts = [
-			self.get_auction_account("consignment_asset_account"),
-			self.get_auction_account("consignment_control_account"),
-		]
-
-		gl_entries = frappe.get_all(
-			"GL Entry",
-			filters={
-				"voucher_type": self.doctype,
-				"voucher_no": self.name,
-				"company": self.company,
-				"account": ["in", accounts],
-				"is_cancelled": 0,
-			},
-			fields=["*"],
-		)
-
-		if gl_entries:
-			make_reverse_gl_entries(gl_entries)
-
 	# def create_commission_gl_entries(self):
 	# 	from erpnext.accounts.general_ledger import make_gl_entries
 	# 	from erpnext.accounts.utils import get_fiscal_year
 
 	# 	commission_amount = flt(
-	# 		self.grand_total * flt(self.commission_percent) / 100,
+	# 		flt(self.grand_total) * flt(self.commission_percent) / 100,
 	# 		self.precision("commission_amount"),
 	# 	)
 
 	# 	if commission_amount <= 0:
 	# 		return
 
-	# 	if self.commission_payment_mode == "Cash":
-	# 		debit_account_name = "Cash"
-	# 	elif self.commission_payment_mode == "Bank Transfer":
-	# 		debit_account_name = "BOBL"
-	# 	else:
-	# 		debit_account_name = "Bidder Receivable"
-
-	# 	debit_account = frappe.db.get_value(
-	# 		"Account",
-	# 		{
-	# 			"account_name": debit_account_name,
-	# 			"company": self.company,
-	# 			"is_group": 0,
-	# 		},
-	# 		"name",
-	# 	)
-
-	# 	income_account = frappe.db.get_value(
-	# 		"Account",
-	# 		{
-	# 			"account_name": "Service",
-	# 			"company": self.company,
-	# 			"is_group": 0,
-	# 		},
-	# 		"name",
-	# 	)
-
-	# 	if not debit_account:
-	# 		frappe.throw(f"{debit_account_name} account not found.")
-
-	# 	if not income_account:
-	# 		frappe.throw("Service income account not found.")
-
 	# 	if not self.bidder:
 	# 		frappe.throw("Please select a Bidder.")
+
+	# 	payment_mode = self.commission_payment_mode
+
+	# 	if payment_mode == "Cash":
+	# 		debit_account = self.get_auction_account("cash_account")
+	# 		is_credit_commission = False
+
+	# 	elif payment_mode == "Bank Transfer":
+	# 		debit_account = self.get_auction_account("bank_account")
+	# 		is_credit_commission = False
+
+	# 	else:
+	# 		debit_account = self.get_auction_account(
+	# 			"bidder_receivable_account"
+	# 		)
+	# 		is_credit_commission = True
+
+	# 	income_account = self.get_auction_account(
+	# 		"commission_income_account"
+	# 	)
 
 	# 	fiscal_year = get_fiscal_year(
 	# 		self.posting_date,
@@ -1054,8 +668,8 @@ class AuctionInvoice(SellingController):
 	# 		"against": income_account,
 	# 	}
 
-	# 	# Add bidder details only for credit commission
-	# 	if not self.commission_payment_mode:
+	# 	# Include bidder details whenever receivables are used.
+	# 	if is_credit_commission:
 	# 		debit_entry.update({
 	# 			"party_type": "Bidder",
 	# 			"party": self.bidder,
@@ -1089,238 +703,211 @@ class AuctionInvoice(SellingController):
 	# 		merge_entries=False,
 	# 	)
 
-	def create_commission_gl_entries(self):
-		from erpnext.accounts.general_ledger import make_gl_entries
-		from erpnext.accounts.utils import get_fiscal_year
-
-		commission_amount = flt(
-			flt(self.grand_total) * flt(self.commission_percent) / 100,
-			self.precision("commission_amount"),
-		)
-
-		if commission_amount <= 0:
-			return
-
-		if not self.bidder:
-			frappe.throw("Please select a Bidder.")
-
-		payment_mode = self.commission_payment_mode
-
-		if payment_mode == "Cash":
-			debit_account = self.get_auction_account("cash_account")
-			is_credit_commission = False
-
-		elif payment_mode == "Bank Transfer":
-			debit_account = self.get_auction_account("bank_account")
-			is_credit_commission = False
-
-		else:
-			debit_account = self.get_auction_account(
-				"bidder_receivable_account"
-			)
-			is_credit_commission = True
-
-		income_account = self.get_auction_account(
-			"commission_income_account"
-		)
-
-		fiscal_year = get_fiscal_year(
-			self.posting_date,
-			company=self.company,
-		)[0]
-
-		debit_entry = {
-			"account": debit_account,
-			"debit": commission_amount,
-			"debit_in_account_currency": commission_amount,
-			"credit": 0,
-			"credit_in_account_currency": 0,
-			"against": income_account,
-		}
-
-		# Include bidder details whenever receivables are used.
-		if is_credit_commission:
-			debit_entry.update({
-				"party_type": "Bidder",
-				"party": self.bidder,
-			})
-
-		gl_entries = [
-			debit_entry,
-			{
-				"account": income_account,
-				"debit": 0,
-				"debit_in_account_currency": 0,
-				"credit": commission_amount,
-				"credit_in_account_currency": commission_amount,
-				"against": debit_account,
-			},
-		]
-
-		for entry in gl_entries:
-			entry.update({
-				"company": self.company,
-				"posting_date": self.posting_date,
-				"voucher_type": self.doctype,
-				"voucher_no": self.name,
-				"fiscal_year": fiscal_year,
-				"cost_center": self.cost_center,
-				"is_opening": "No",
-			})
-
-		make_gl_entries(
-			[frappe._dict(entry) for entry in gl_entries],
-			merge_entries=False,
-		)
-
 	# def cancel_commission_gl_entries(self):
 	# 	from erpnext.accounts.general_ledger import make_reverse_gl_entries
 
-	# 	accounts = frappe.get_all(
-	# 		"Account",
-	# 		filters={
-	# 			"account_name": [
-	# 				"in",
-	# 				["Cash", "BOBL", "Bidder Receivable", "Service"],
-	# 			],
-	# 			"company": self.company,
-	# 			"is_group": 0,
-	# 		},
-	# 		pluck="name",
-	# 	)
+	# 	if self.commission_payment_mode == "Cash":
+	# 		debit_account = self.get_auction_account("cash_account")
 
-	# 	if not accounts:
-	# 		return
+	# 	elif self.commission_payment_mode == "Bank Transfer":
+	# 		debit_account = self.get_auction_account("bank_account")
+
+	# 	else:
+	# 		debit_account = self.get_auction_account(
+	# 			"bidder_receivable_account"
+	# 		)
+
+	# 	income_account = self.get_auction_account(
+	# 		"commission_income_account"
+	# 	)
 
 	# 	gl_entries = frappe.get_all(
 	# 		"GL Entry",
 	# 		filters={
 	# 			"voucher_type": self.doctype,
 	# 			"voucher_no": self.name,
-	# 			"account": ["in", accounts],
+	# 			"company": self.company,
+	# 			"account": ["in", [debit_account, income_account]],
 	# 			"is_cancelled": 0,
 	# 		},
-	# 		#fields=["name"],
 	# 		fields=["*"],
 	# 	)
 
 	# 	if gl_entries:
 	# 		make_reverse_gl_entries(gl_entries)
+    
+	def create_auction_gl_entries(self):
+		from erpnext.accounts.general_ledger import make_gl_entries
+		from erpnext.accounts.utils import get_fiscal_year
 
+		if not self.bidder:
+			frappe.throw("Please select a Bidder.")
 
-	def cancel_commission_gl_entries(self):
-		from erpnext.accounts.general_ledger import make_reverse_gl_entries
+		if not self.lot_card:
+			frappe.throw("Please select a Lot Card.")
 
-		if self.commission_payment_mode == "Cash":
-			debit_account = self.get_auction_account("cash_account")
+		lot = frappe.get_doc("Lot Card", self.lot_card)
 
-		elif self.commission_payment_mode == "Bank Transfer":
-			debit_account = self.get_auction_account("bank_account")
+		if not lot.grower_id:
+			frappe.throw("Please select a Grower on the Lot Card.")
 
-		else:
-			debit_account = self.get_auction_account(
-				"bidder_receivable_account"
-			)
-
-		income_account = self.get_auction_account(
-			"commission_income_account"
+		warehouse_account = self.get_auction_account(
+			"warehouse_account"
+		)
+		receivable_account = self.get_auction_account(
+			"bidder_receivable_account"
 		)
 
-		gl_entries = frappe.get_all(
+		company_currency = frappe.get_cached_value(
+			"Company", self.company, "default_currency"
+		)
+
+		if (
+			self.currency != company_currency
+			or flt(self.conversion_rate) != 1
+		):
+			frappe.throw(
+				"This auction posting supports company currency only."
+			)
+
+		item_value = flt(
+			self.total, self.precision("total")
+		)
+		commission = flt(
+			self.commission_amount,
+			self.precision("commission_amount"),
+		)
+		unloading = flt(
+			self.unloading_charges,
+			self.precision("unloading_charges"),
+		)
+		grower_charges = flt(
+			commission + unloading,
+			self.precision("grand_total"),
+		)
+
+		if item_value <= 0:
+			frappe.throw("Item value must be greater than zero.")
+
+		if commission < 0 or unloading < 0:
+			frappe.throw(
+				"Commission and unloading charges cannot be negative."
+			)
+
+		fiscal_year = get_fiscal_year(
+			self.posting_date,
+			company=self.company,
+		)[0]
+
+		common = {
+			"company": self.company,
+			"posting_date": self.posting_date,
+			"voucher_type": self.doctype,
+			"voucher_no": self.name,
+			"fiscal_year": fiscal_year,
+			"cost_center": self.cost_center,
+			"is_opening": "No",
+		}
+
+		entries = []
+
+		def add_entry(account, debit=0, credit=0, **extra):
+			account_currency = frappe.db.get_value(
+				"Account", account, "account_currency"
+			)
+
+			if account_currency != company_currency:
+				frappe.throw(
+					f"Account {account} must use {company_currency}."
+				)
+
+			entries.append(frappe._dict({
+				**common,
+				"account": account,
+				"account_currency": account_currency,
+				"debit": debit,
+				"debit_in_account_currency": debit,
+				"credit": credit,
+				"credit_in_account_currency": credit,
+				**extra,
+			}))
+
+		# Bidder pays only the full item value.
+		add_entry(
+			receivable_account,
+			debit=item_value,
+			party_type="Bidder",
+			party=self.bidder,
+			against=warehouse_account,
+		)
+
+		# Clear the full Lot Card stock value.
+		add_entry(
+			warehouse_account,
+			credit=item_value,
+			against=receivable_account,
+		)
+
+		if grower_charges:
+			grower_payable_account = self.get_auction_account(
+				"grower_payable_account"
+			)
+
+			charge_accounts = []
+
+			if commission:
+				income_account = self.get_auction_account(
+					"commission_income_account"
+				)
+				charge_accounts.append(income_account)
+
+			if unloading:
+				unloading_account = self.get_auction_account(
+					"unloading_charges_payable_account"
+				)
+				charge_accounts.append(unloading_account)
+
+			# Deduct charges from the grower's entitlement.
+			add_entry(
+				grower_payable_account,
+				debit=grower_charges,
+				party_type="Grower",
+				party=lot.grower_id,
+				against=", ".join(charge_accounts),
+			)
+
+			if commission:
+				add_entry(
+					income_account,
+					credit=commission,
+					against=grower_payable_account,
+				)
+
+			if unloading:
+				add_entry(
+					unloading_account,
+					credit=unloading,
+					against=grower_payable_account,
+				)
+
+		make_gl_entries(entries, merge_entries=False)
+
+	def cancel_auction_gl_entries(self):
+		from erpnext.accounts.general_ledger import make_reverse_gl_entries
+
+		entries = frappe.get_all(
 			"GL Entry",
 			filters={
 				"voucher_type": self.doctype,
 				"voucher_no": self.name,
 				"company": self.company,
-				"account": ["in", [debit_account, income_account]],
 				"is_cancelled": 0,
 			},
 			fields=["*"],
 		)
 
-		if gl_entries:
-			make_reverse_gl_entries(gl_entries)
-
-# def update_billed_amount_based_on_so(so_detail, update_modified=True):
-# 	from frappe.query_builder.functions import Sum
-
-# 	# Billed against Sales Order directly
-# 	si = frappe.qb.DocType("Sales Invoice").as_("si")
-# 	si_item = frappe.qb.DocType("Sales Invoice Item").as_("si_item")
-# 	sum_amount = Sum(si_item.amount).as_("amount")
-
-# 	billed_against_so = (
-# 		frappe.qb.from_(si_item)
-# 		.join(si)
-# 		.on(si.name == si_item.parent)
-# 		.select(sum_amount)
-# 		.where(
-# 			(si_item.so_detail == so_detail)
-# 			& ((si_item.dn_detail.isnull()) | (si_item.dn_detail == ""))
-# 			& (si_item.docstatus == 1)
-# 			& (si.update_stock == 0)
-# 		)
-# 		.run()
-# 	)
-# 	billed_against_so = billed_against_so and billed_against_so[0][0] or 0
-
-# 	# Get all Auction Invoice Item rows against the Sales Order Item row
-# 	dn = frappe.qb.DocType("Auction Invoice ").as_("dn")
-# 	dn_item = frappe.qb.DocType("Auction Invoice Item").as_("dn_item")
-
-# 	dn_details = (
-# 		frappe.qb.from_(dn)
-# 		.from_(dn_item)
-# 		.select(dn_item.name, dn_item.amount, dn_item.si_detail, dn_item.parent)
-# 		.where(
-# 			(dn.name == dn_item.parent)
-# 			& (dn_item.so_detail == so_detail)
-# 			& (dn.docstatus == 1)
-# 			& (dn.is_return == 0)
-# 		)
-# 		.orderby(dn.posting_date, dn.posting_time, dn.name)
-# 		.run(as_dict=True)
-# 	)
-
-# 	updated_dn = []
-# 	for dnd in dn_details:
-# 		billed_amt_against_dn = 0
-
-# 		# If delivered against Sales Invoice
-# 		if dnd.si_detail:
-# 			billed_amt_against_dn = flt(dnd.amount)
-# 			billed_against_so -= billed_amt_against_dn
-# 		else:
-# 			# Get billed amount directly against Auction Invoice 
-# 			billed_amt_against_dn = frappe.db.sql(
-# 				"""select sum(amount) from `tabSales Invoice Item`
-# 				where dn_detail=%s and docstatus=1""",
-# 				dnd.name,
-# 			)
-# 			billed_amt_against_dn = billed_amt_against_dn and billed_amt_against_dn[0][0] or 0
-
-# 		# Distribute billed amount directly against SO between DNs based on FIFO
-# 		if billed_against_so and billed_amt_against_dn < dnd.amount:
-# 			pending_to_bill = flt(dnd.amount) - billed_amt_against_dn
-# 			if pending_to_bill <= billed_against_so:
-# 				billed_amt_against_dn += pending_to_bill
-# 				billed_against_so -= pending_to_bill
-# 			else:
-# 				billed_amt_against_dn += billed_against_so
-# 				billed_against_so = 0
-
-# 		frappe.db.set_value(
-# 			"Auction Invoice Item",
-# 			dnd.name,
-# 			"billed_amt",
-# 			billed_amt_against_dn,
-# 			update_modified=update_modified,
-# 		)
-
-# 		updated_dn.append(dnd.parent)
-
-# 	return updated_dn
-
+		if entries:
+			make_reverse_gl_entries(entries)
 
 def get_list_context(context=None):
 	from erpnext.controllers.website_list_for_contact import get_list_context
@@ -1337,570 +924,38 @@ def get_list_context(context=None):
 	)
 	return list_context
 
-
-# def get_invoiced_qty_map(delivery_note):
-# 	"""returns a map: {dn_detail: invoiced_qty}"""
-# 	sii = DocType("Sales Invoice Item")
-
-# 	invoiced_qty_map = frappe._dict(
-# 		(
-# 			frappe.qb.from_(sii)
-# 			.select(sii.dn_detail, Sum(sii.qty).as_("qty"))
-# 			.where((sii.delivery_note == delivery_note) & (sii.docstatus == 1))
-# 			.groupby(sii.dn_detail)
-# 		).run()
-# 	)
-
-# 	return invoiced_qty_map
-
-
-# def get_returned_qty_map(delivery_note):
-# 	"""returns a map: {so_detail: returned_qty}"""
-# 	dn = DocType("Auction Invoice ")
-# 	dni = DocType("Auction Invoice Item")
-
-# 	returned_qty_map = frappe._dict(
-# 		(
-# 			frappe.qb.from_(dni)
-# 			.join(dn)
-# 			.on(dn.name == dni.parent)
-# 			.select(dni.dn_detail, Sum(Abs(dni.qty)).as_("qty"))
-# 			.where(
-# 				(dn.docstatus == 1)
-# 				& (dn.is_return == 1)
-# 				& (dn.return_against == delivery_note)
-# 				& (dni.qty <= 0)
-# 			)
-# 			.groupby(dni.dn_detail)
-# 		).run()
-# 	)
-
-# 	return returned_qty_map
-
-
-# @frappe.whitelist()
-# def make_sales_invoice(
-# 	source_name: str, target_doc: Document | str | None = None, args: dict | str | None = None
-# ):
-# 	if args is None:
-# 		args = {}
-# 	if isinstance(args, str):
-# 		args = json.loads(args)
-
-# 	doc = frappe.get_doc("Auction Invoice ", source_name)
-
-# 	to_make_invoice_qty_map = {}
-# 	returned_qty_map = get_returned_qty_map(source_name)
-# 	invoiced_qty_map = get_invoiced_qty_map(source_name)
-# 	for ref, qty in get_qty_already_mapped(target_doc, "dn_detail").items():
-# 		invoiced_qty_map[ref] = invoiced_qty_map.get(ref, 0) + qty
-
-# 	def set_missing_values(source, target):
-# 		target.run_method("set_missing_values")
-# 		target.run_method("set_po_nos")
-
-# 		if len(target.get("items")) == 0:
-# 			frappe.throw(_("All these items have already been Invoiced/Returned"))
-
-# 		if args and args.get("merge_taxes"):
-# 			merge_taxes(source, target)
-
-# 		target.run_method("calculate_taxes_and_totals")
-
-# 		# set company address
-# 		if source.company_address:
-# 			target.update({"company_address": source.company_address})
-# 		else:
-# 			# set company address
-# 			target.update(get_company_address(target.company))
-
-# 		if target.company_address:
-# 			target.update(get_fetch_values("Sales Invoice", "company_address", target.company_address))
-
-# 	def update_item(source_doc, target_doc, source_parent):
-# 		target_doc.qty = to_make_invoice_qty_map[source_doc.name]
-# 		target_doc._old_name = source_doc.name
-
-# 	def get_pending_qty(item_row):
-# 		pending_qty = item_row.qty - invoiced_qty_map.get(item_row.name, 0)
-
-# 		returned_qty = 0
-# 		if returned_qty_map.get(item_row.name, 0) > 0:
-# 			returned_qty = flt(returned_qty_map.get(item_row.name, 0))
-# 			returned_qty_map[item_row.name] -= pending_qty
-
-# 		if returned_qty:
-# 			if returned_qty >= pending_qty:
-# 				pending_qty = 0
-# 				returned_qty -= pending_qty
-# 			else:
-# 				pending_qty -= returned_qty
-# 				returned_qty = 0
-
-# 		to_make_invoice_qty_map[item_row.name] = pending_qty
-
-# 		return pending_qty
-
-# 	def select_item(d):
-# 		filtered_items = args.get("filtered_children", [])
-# 		child_filter = d.name in filtered_items if filtered_items else True
-# 		return child_filter
-
-# 	doc = get_mapped_doc(
-# 		"Auction Invoice ",
-# 		source_name,
-# 		{
-# 			"Auction Invoice ": {
-# 				"doctype": "Sales Invoice",
-# 				"field_map": {"is_return": "is_return"},
-# 				"validation": {"docstatus": ["=", 1]},
-# 			},
-# 			"Auction Invoice Item": {
-# 				"doctype": "Sales Invoice Item",
-# 				"field_map": {
-# 					"name": "dn_detail",
-# 					"parent": "delivery_note",
-# 					"so_detail": "so_detail",
-# 					"against_sales_order": "sales_order",
-# 					"cost_center": "cost_center",
-# 				},
-# 				"postprocess": update_item,
-# 				"filter": lambda d: get_pending_qty(d) <= 0
-# 				if not doc.get("is_return")
-# 				else get_pending_qty(d) >= 0,
-# 				"condition": select_item,
-# 			},
-# 			"Sales Taxes and Charges": {
-# 				"doctype": "Sales Taxes and Charges",
-# 				"reset_value": not (args and args.get("merge_taxes")),
-# 				"ignore": args.get("merge_taxes") if args else 0,
-# 			},
-# 			"Sales Team": {
-# 				"doctype": "Sales Team",
-# 				"field_map": {"incentives": "incentives"},
-# 				"add_if_empty": True,
-# 			},
-# 		},
-# 		target_doc,
-# 		set_missing_values,
-# 	)
-
-# 	automatically_fetch_payment_terms = cint(
-# 		frappe.get_single_value("Accounts Settings", "automatically_fetch_payment_terms")
-# 	)
-
-# 	if doc.is_return:
-# 		# A credit note made from a return Auction Invoice  should roll back the billed
-# 		# amount on the linked Sales Order too, so that per_billed stays consistent with
-# 		# per_delivered (which the return already reset).
-# 		doc.update_billed_amount_in_sales_order = True
-# 	else:
-# 		so, doctype, fieldname = doc.get_order_details()
-# 		if (
-# 			doc.linked_order_has_payment_terms(so, fieldname, doctype)
-# 			and not automatically_fetch_payment_terms
-# 		):
-# 			payment_terms_template = frappe.db.get_value(doctype, so, "payment_terms_template")
-# 			doc.payment_terms_template = payment_terms_template
-# 			doc.due_date = get_due_date(
-# 				doc.posting_date,
-# 				"Customer",
-# 				doc.customer,
-# 				doc.company,
-# 				template_name=doc.payment_terms_template,
-# 			)
-
-# 		elif automatically_fetch_payment_terms:
-# 			doc.set_payment_schedule()
-
-# 	return doc
-
-
-# @frappe.whitelist()
-# def make_delivery_trip(source_name, target_doc=None, kwargs=None):
-# 	if not target_doc:
-# 		target_doc = frappe.new_doc("Delivery Trip")
-
-# 	def update_address(source_doc, target_doc, source_parent):
-# 		target_doc.address = source_doc.shipping_address_name or source_doc.customer_address
-# 		target_doc.customer_address = source_doc.shipping_address or source_doc.address_display
-
-# 	doclist = get_mapped_doc(
-# 		"Auction Invoice ",
-# 		source_name,
-# 		{
-# 			"Auction Invoice ": {
-# 				"doctype": "Delivery Stop",
-# 				"on_parent": target_doc,
-# 				"field_map": {
-# 					"name": "delivery_note",
-# 					"contact_person": "contact",
-# 					"contact_display": "customer_contact",
-# 				},
-# 				"postprocess": update_address,
-# 			},
-# 		},
-# 		ignore_child_tables=True,
-# 	)
-
-# 	return doclist
-
-
-# @frappe.whitelist()
-# def make_installation_note(source_name, target_doc=None, kwargs=None):
-# 	def update_item(obj, target, source_parent):
-# 		target.qty = flt(obj.qty) - flt(obj.installed_qty)
-# 		target.serial_no = obj.serial_no
-
-# 	doclist = get_mapped_doc(
-# 		"Auction Invoice ",
-# 		source_name,
-# 		{
-# 			"Auction Invoice ": {"doctype": "Installation Note", "validation": {"docstatus": ["=", 1]}},
-# 			"Auction Invoice Item": {
-# 				"doctype": "Installation Note Item",
-# 				"field_map": {
-# 					"name": "prevdoc_detail_docname",
-# 					"parent": "prevdoc_docname",
-# 					"parenttype": "prevdoc_doctype",
-# 				},
-# 				"postprocess": update_item,
-# 				"condition": lambda doc: doc.installed_qty < doc.qty,
-# 			},
-# 		},
-# 		target_doc,
-# 	)
-
-# 	return doclist
-
-
-# @frappe.whitelist()
-# def make_packing_slip(source_name, target_doc=None):
-# 	def set_missing_values(source, target):
-# 		target.run_method("set_missing_values")
-
-# 	def update_item(obj, target, source_parent):
-# 		target.qty = flt(obj.qty) - flt(obj.packed_qty)
-
-# 	doclist = get_mapped_doc(
-# 		"Auction Invoice ",
-# 		source_name,
-# 		{
-# 			"Auction Invoice ": {
-# 				"doctype": "Packing Slip",
-# 				"field_map": {"name": "delivery_note", "letter_head": "letter_head"},
-# 				"validation": {"docstatus": ["=", 0]},
-# 			},
-# 			"Auction Invoice Item": {
-# 				"doctype": "Packing Slip Item",
-# 				"field_map": {
-# 					"item_code": "item_code",
-# 					"item_name": "item_name",
-# 					"batch_no": "batch_no",
-# 					"description": "description",
-# 					"qty": "qty",
-# 					"uom": "stock_uom",
-# 					"name": "dn_detail",
-# 				},
-# 				"postprocess": update_item,
-# 				"condition": lambda item: (
-# 					not frappe.db.exists("Product Bundle", {"new_item_code": item.item_code, "disabled": 0})
-# 					and flt(item.packed_qty) < flt(item.qty)
-# 				),
-# 			},
-# 			"Packed Item": {
-# 				"doctype": "Packing Slip Item",
-# 				"field_map": {
-# 					"item_code": "item_code",
-# 					"item_name": "item_name",
-# 					"batch_no": "batch_no",
-# 					"description": "description",
-# 					"qty": "qty",
-# 					"name": "pi_detail",
-# 				},
-# 				"postprocess": update_item,
-# 				"condition": lambda item: (flt(item.packed_qty) < flt(item.qty)),
-# 			},
-# 		},
-# 		target_doc,
-# 		set_missing_values,
-# 	)
-
-# 	return doclist
-
-
-# @frappe.whitelist()
-# def make_shipment(source_name, target_doc=None):
-# 	def postprocess(source, target):
-# 		user = frappe.db.get_value(
-# 			"User", frappe.session.user, ["email", "full_name", "phone", "mobile_no"], as_dict=1
-# 		)
-# 		target.pickup_contact_email = user.email
-# 		pickup_contact_display = f"{user.full_name}"
-# 		if user:
-# 			if user.email:
-# 				pickup_contact_display += "<br>" + user.email
-# 			if user.phone:
-# 				pickup_contact_display += "<br>" + user.phone
-# 			if user.mobile_no and not user.phone:
-# 				pickup_contact_display += "<br>" + user.mobile_no
-# 		target.pickup_contact = pickup_contact_display
-
-# 		# As we are using session user details in the pickup_contact then pickup_contact_person will be session user
-# 		target.pickup_contact_person = frappe.session.user
-
-# 		contact_person = source.contact_person or get_default_contact("Customer", source.customer)
-# 		if contact_person:
-# 			contact = frappe.db.get_value(
-# 				"Contact", contact_person, ["email_id", "phone", "mobile_no"], as_dict=1
-# 			)
-
-# 			delivery_contact_display = source.contact_display or contact_person or ""
-# 			if contact and not source.contact_display:
-# 				if contact.email_id:
-# 					delivery_contact_display += "<br>" + contact.email_id
-# 				if contact.phone:
-# 					delivery_contact_display += "<br>" + contact.phone
-# 				if contact.mobile_no and not contact.phone:
-# 					delivery_contact_display += "<br>" + contact.mobile_no
-
-# 			target.delivery_contact_name = contact_person
-# 			if contact and contact.email_id and not target.delivery_contact_email:
-# 				target.delivery_contact_email = contact.email_id
-# 			target.delivery_contact = delivery_contact_display
-
-# 		if source.shipping_address_name:
-# 			target.delivery_address_name = source.shipping_address_name
-# 			target.delivery_address = source.shipping_address
-# 		elif source.customer_address:
-# 			target.delivery_address_name = source.customer_address
-# 			target.delivery_address = source.address_display
-
-# 	doclist = get_mapped_doc(
-# 		"Auction Invoice ",
-# 		source_name,
-# 		{
-# 			"Auction Invoice ": {
-# 				"doctype": "Shipment",
-# 				"field_map": {
-# 					"grand_total": "value_of_goods",
-# 					"company": "pickup_company",
-# 					"company_address": "pickup_address_name",
-# 					"company_address_display": "pickup_address",
-# 					"customer": "delivery_customer",
-# 					"contact_person": "delivery_contact_name",
-# 					"contact_email": "delivery_contact_email",
-# 				},
-# 				"validation": {"docstatus": ["=", 1]},
-# 			},
-# 			"Auction Invoice Item": {
-# 				"doctype": "Shipment Auction Invoice ",
-# 				"field_map": {
-# 					"name": "prevdoc_detail_docname",
-# 					"parent": "prevdoc_docname",
-# 					"parenttype": "prevdoc_doctype",
-# 					"base_amount": "grand_total",
-# 				},
-# 			},
-# 		},
-# 		target_doc,
-# 		postprocess,
-# 	)
-
-# 	return doclist
-
-
-# @frappe.whitelist()
-# def make_sales_return(source_name, target_doc=None):
-# 	from erpnext.controllers.sales_and_purchase_return import make_return_doc
-
-# 	return make_return_doc("Auction Invoice ", source_name, target_doc)
-
-
-# @frappe.whitelist()
-# def update_delivery_note_status(docname, status):
-# 	dn = frappe.get_lazy_doc("Auction Invoice ", docname)
-# 	dn.check_permission("submit")
-# 	dn.update_status(status)
-
-
-# @frappe.whitelist()
-# def make_inter_company_purchase_receipt(source_name, target_doc=None):
-# 	return make_inter_company_transaction("Auction Invoice ", source_name, target_doc)
-
-
-# def make_inter_company_transaction(doctype, source_name, target_doc=None):
-# 	from erpnext.accounts.doctype.sales_invoice.sales_invoice import (
-# 		get_inter_company_details,
-# 		set_purchase_references,
-# 		update_address,
-# 		update_taxes,
-# 		validate_inter_company_transaction,
-# 	)
-
-# 	if doctype == "Auction Invoice ":
-# 		source_doc = frappe.get_doc(doctype, source_name)
-# 		target_doctype = "Purchase Receipt"
-# 		source_document_warehouse_field = "target_warehouse"
-# 		target_document_warehouse_field = "from_warehouse"
-# 	else:
-# 		source_doc = frappe.get_doc(doctype, source_name)
-# 		target_doctype = "Auction Invoice "
-# 		source_document_warehouse_field = "from_warehouse"
-# 		target_document_warehouse_field = "target_warehouse"
-
-# 	validate_inter_company_transaction(source_doc, doctype)
-# 	details = get_inter_company_details(source_doc, doctype)
-
-# 	def set_missing_values(source, target):
-# 		target.run_method("set_missing_values")
-# 		set_purchase_references(target)
-
-# 		if target.doctype == "Purchase Receipt":
-# 			master_doctype = "Purchase Taxes and Charges Template"
-# 		else:
-# 			master_doctype = "Sales Taxes and Charges Template"
-
-# 		if not target.get("taxes") and target.get("taxes_and_charges"):
-# 			for tax in _get_taxes_and_charges(master_doctype, target.get("taxes_and_charges")):
-# 				target.append("taxes", tax)
-
-# 		if not target.get("items"):
-# 			frappe.throw(_("All items have already been received"))
-
-# 	def update_details(source_doc, target_doc, source_parent):
-# 		def _validate_address_link(address, link_doctype, link_name):
-# 			return frappe.db.get_value(
-# 				"Dynamic Link",
-# 				{
-# 					"parent": address,
-# 					"parenttype": "Address",
-# 					"link_doctype": link_doctype,
-# 					"link_name": link_name,
-# 				},
-# 				"parent",
-# 			)
-
-# 		target_doc.inter_company_invoice_reference = source_doc.name
-# 		if target_doc.doctype == "Purchase Receipt":
-# 			target_doc.company = details.get("company")
-# 			target_doc.supplier = details.get("party")
-# 			target_doc.buying_price_list = source_doc.selling_price_list
-# 			target_doc.is_internal_supplier = 1
-# 			target_doc.inter_company_reference = source_doc.name
-
-# 			# Invert the address on target doc creation
-# 			if source_doc.company_address and _validate_address_link(
-# 				source_doc.company_address, "Supplier", details.get("party")
-# 			):
-# 				update_address(target_doc, "supplier_address", "address_display", source_doc.company_address)
-# 			if source_doc.dispatch_address_name and _validate_address_link(
-# 				source_doc.dispatch_address_name, "Company", details.get("company")
-# 			):
-# 				update_address(
-# 					target_doc,
-# 					"dispatch_address",
-# 					"dispatch_address_display",
-# 					source_doc.dispatch_address_name,
-# 				)
-# 			if source_doc.shipping_address_name and _validate_address_link(
-# 				source_doc.shipping_address_name, "Company", details.get("company")
-# 			):
-# 				update_address(
-# 					target_doc,
-# 					"shipping_address",
-# 					"shipping_address_display",
-# 					source_doc.shipping_address_name,
-# 				)
-# 			if source_doc.customer_address and _validate_address_link(
-# 				source_doc.customer_address, "Company", details.get("company")
-# 			):
-# 				update_address(
-# 					target_doc, "billing_address", "billing_address_display", source_doc.customer_address
-# 				)
-
-# 			update_taxes(
-# 				target_doc,
-# 				party=target_doc.supplier,
-# 				party_type="Supplier",
-# 				company=target_doc.company,
-# 				doctype=target_doc.doctype,
-# 				party_address=target_doc.supplier_address,
-# 				company_address=target_doc.shipping_address,
-# 			)
-# 		else:
-# 			target_doc.company = details.get("company")
-# 			target_doc.customer = details.get("party")
-# 			target_doc.company_address = source_doc.supplier_address
-# 			target_doc.selling_price_list = source_doc.buying_price_list
-# 			target_doc.is_internal_customer = 1
-# 			target_doc.inter_company_reference = source_doc.name
-
-# 			# Invert the address on target doc creation
-# 			if source_doc.supplier_address and _validate_address_link(
-# 				source_doc.supplier_address, "Company", details.get("company")
-# 			):
-# 				update_address(
-# 					target_doc, "company_address", "company_address_display", source_doc.supplier_address
-# 				)
-# 			if source_doc.shipping_address and _validate_address_link(
-# 				source_doc.shipping_address, "Customer", details.get("party")
-# 			):
-# 				update_address(
-# 					target_doc, "shipping_address_name", "shipping_address", source_doc.shipping_address
-# 				)
-# 			if source_doc.shipping_address and _validate_address_link(
-# 				source_doc.shipping_address, "Customer", details.get("party")
-# 			):
-# 				update_address(target_doc, "customer_address", "address_display", source_doc.shipping_address)
-
-# 			update_taxes(
-# 				target_doc,
-# 				party=target_doc.customer,
-# 				party_type="Customer",
-# 				company=target_doc.company,
-# 				doctype=target_doc.doctype,
-# 				party_address=target_doc.customer_address,
-# 				company_address=target_doc.company_address,
-# 				shipping_address_name=target_doc.shipping_address_name,
-# 			)
-
-# 	def update_item(source, target, source_parent):
-# 		if source_parent.doctype == "Auction Invoice " and source.received_qty:
-# 			target.qty = flt(source.qty) + flt(source.returned_qty) - flt(source.received_qty)
-
-# 		if source.get("use_serial_batch_fields"):
-# 			target.set("use_serial_batch_fields", 1)
-
-# 		if (source.get("serial_no") or source.get("batch_no")) and not source.get("serial_and_batch_bundle"):
-# 			target.set("use_serial_batch_fields", 1)
-
-# 	doclist = get_mapped_doc(
-# 		doctype,
-# 		source_name,
-# 		{
-# 			doctype: {
-# 				"doctype": target_doctype,
-# 				"postprocess": update_details,
-# 				"field_no_map": [*CROSS_PARTY_FIELD_NO_MAP, "set_warehouse"],
-# 			},
-# 			doctype + " Item": {
-# 				"doctype": target_doctype + " Item",
-# 				"field_map": {
-# 					source_document_warehouse_field: target_document_warehouse_field,
-# 					"name": "delivery_note_item",
-# 					"purchase_order": "purchase_order",
-# 					"purchase_order_item": "purchase_order_item",
-# 					"material_request": "material_request",
-# 					"Material_request_item": "material_request_item",
-# 				},
-# 				"field_no_map": ["warehouse"],
-# 				"condition": lambda item: item.received_qty < item.qty + item.returned_qty,
-# 				"postprocess": update_item,
-# 			},
-# 		},
-# 		target_doc,
-# 		set_missing_values,
-# 	)
-
-# 	return doclist
+@frappe.whitelist()
+def make_auction_invoice(source_name, target_doc=None):
+    if not frappe.has_permission("Auction Invoice", "create"):
+        frappe.throw(
+            "You do not have permission to create an Auction Invoice.",
+            frappe.PermissionError,
+        )
+
+    lot = frappe.get_doc("Lot Card", source_name)
+    lot.check_permission("read")
+
+    if lot.docstatus != 1 or lot.get("is_return"):
+        frappe.throw(
+            "Please select a submitted, non-return Lot Card."
+        )
+
+    existing_invoice = frappe.db.get_value(
+        "Auction Invoice",
+        {
+            "lot_card": lot.name,
+            "docstatus": 1,
+        },
+        "name",
+    )
+
+    if existing_invoice:
+        frappe.throw(
+            f"This Lot Card is already invoiced through {existing_invoice}."
+        )
+
+    invoice = frappe.new_doc("Auction Invoice")
+    invoice.lot_card = lot.name
+    invoice.fetch_lot_card_items()
+
+    return invoice

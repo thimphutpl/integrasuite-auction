@@ -19,11 +19,12 @@ class AuctionAccountingSettings(Document):
 		cash_account: DF.Link
 		commission_income_account: DF.Link
 		company: DF.Link
-		consignment_asset_account: DF.Link
-		consignment_control_account: DF.Link
-		grower_advances_account: DF.Link
+		grower_payable_account: DF.Link | None
 		registration_fee_income_account: DF.Link
 		security_deposit_liability_account: DF.Link
+		unloading_charges_payable_account: DF.Link | None
+		warehouse: DF.Link | None
+		warehouse_account: DF.Link | None
 	# end: auto-generated types
 
 	pass

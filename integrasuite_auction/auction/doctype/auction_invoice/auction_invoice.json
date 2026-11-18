@@ -9,9 +9,11 @@
  "field_order": [
   "column_break_yzot",
   "naming_series",
+  "series_copy",
   "company",
   "column_break1",
   "posting_date",
+  "lot_card",
   "column_break_10",
   "posting_time",
   "amended_from",
@@ -53,6 +55,7 @@
   "commission_percent",
   "commission_amount",
   "column_break_lfkq",
+  "unloading_charges",
   "section_break_31",
   "total_qty",
   "total_net_weight",
@@ -410,16 +413,14 @@
    "oldfieldname": "price_list_name",
    "oldfieldtype": "Select",
    "options": "Price List",
-   "print_hide": 1,
-   "reqd": 1
+   "print_hide": 1
   },
   {
    "fieldname": "price_list_currency",
    "fieldtype": "Link",
    "label": "Price List Currency",
    "options": "Currency",
-   "print_hide": 1,
-   "reqd": 1
+   "print_hide": 1
   },
   {
    "description": "Rate at which Price list currency is converted to company's base currency",
@@ -427,8 +428,7 @@
    "fieldtype": "Float",
    "label": "Price List Exchange Rate",
    "precision": "9",
-   "print_hide": 1,
-   "reqd": 1
+   "print_hide": 1
   },
   {
    "default": "0",
@@ -1509,13 +1509,39 @@
    "label": "Issue Credit Note",
    "no_copy": 1,
    "print_hide": 1
+  },
+  {
+   "fieldname": "lot_card",
+   "fieldtype": "Link",
+   "label": "Lot Card",
+   "no_copy": 1,
+   "options": "Lot Card",
+   "reqd": 1
+  },
+  {
+   "fieldname": "series_copy",
+   "fieldtype": "Select",
+   "label": "Series Copy",
+   "no_copy": 1,
+   "oldfieldname": "naming_series",
+   "oldfieldtype": "Select",
+   "options": "AUC-INV-.YYYY.-",
+   "print_hide": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "unloading_charges",
+   "fieldtype": "Currency",
+   "label": "Unloading Charges"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-11-12 12:44:04.712897",
+ "modified": "2026-11-17 15:38:14.644752",
  "modified_by": "Administrator",
  "module": "Auction",
  "name": "Auction Invoice",

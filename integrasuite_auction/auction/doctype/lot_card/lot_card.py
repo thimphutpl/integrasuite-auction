@@ -65,10 +65,8 @@ class LotCard(BuyingController):
 		is_return: DF.Check
 		is_subcontracted: DF.Check
 		items: DF.Table[LotCardItem]
-		loading_charges: DF.Data | None
 		location: DF.Link | None
 		lot_card_number: DF.Data
-		mode_of_payment: DF.Link | None
 		net_total: DF.Currency
 		pay_grower_advance: DF.Check
 		per_billed: DF.Percent
@@ -82,7 +80,6 @@ class LotCard(BuyingController):
 		total_quantity: DF.Float
 		village: DF.Data | None
 	# end: auto-generated types
-
 
 	def get_auction_account(self, fieldname):
 		settings = frappe.get_single("Auction Accounting Settings")
@@ -116,11 +113,11 @@ class LotCard(BuyingController):
 
 		return account
 
-	
 	def validate(self):
 		self.validate_posting_time()
 		#self.validate_posting_date_with_po()
 		super().validate()
+		self.calculate_lot_totals()
 
 		if self._action != "submit":
 			self.set_status()
@@ -150,11 +147,11 @@ class LotCard(BuyingController):
 
 		
 		self.update_stock_ledger()
-		self.create_consignment_gl_entries()
+		self.create_lot_card_gl_entries()
 		self.create_grower_advance_je()
 	
 	def on_cancel(self):
-		self.cancel_consignment_gl_entries()
+		self.cancel_lot_card_gl_entries()
 		# Cancel the Journal Entry for the grower advance if the Lot Card is cancelled.
 		self.cancel_grower_advance_je()
 		super().on_cancel()
@@ -174,6 +171,33 @@ class LotCard(BuyingController):
 		super().before_cancel()
 		#self.remove_amount_difference_with_purchase_invoice()
 
+	# def calculate_lot_totals(self):
+	# 	total_quantity = 0
+	# 	total_net_weight = 0
+
+	# 	for row in self.items:
+	# 		qty = flt(row.qty)
+	# 		stock_qty = qty * flt(row.conversion_factor)
+
+	# 		row.stock_qty = stock_qty
+
+	# 		# Assumes weight_per_unit is the weight per Stock UOM.
+	# 		row.total_weight = flt(
+	# 			stock_qty * flt(row.weight_per_unit),
+	# 			row.precision("total_weight"),
+	# 		)
+
+	# 		total_quantity += qty
+	# 		total_net_weight += row.total_weight
+
+	# 	self.total_quantity = flt(
+	# 		total_quantity,
+	# 		self.precision("total_quantity"),
+	# 	)
+	# 	self.total_net_weight = flt(
+	# 		total_net_weight,
+	# 		self.precision("total_net_weight"),
+	# 	)
     #Added by me 
 	def calculate_taxes_and_totals(self):
 		if self.get("taxes") is None:
@@ -186,102 +210,6 @@ class LotCard(BuyingController):
 		self.set_status(update=True, status=status)
 		self.notify_update()
 		clear_doctype_notifications(self)
-
-	
-
-	# Create a Draft Journal Entry for the Grower Advance.
-	# def create_grower_advance_je(self):
-	# 	if not self.pay_grower_advance:
-	# 		return
-
-	# 	# Prevent duplicate Journal Entries
-	# 	if self.grower_advance_je:
-	# 		existing_je = frappe.get_doc(
-	# 			"Journal Entry", self.grower_advance_je
-	# 		)
-
-	# 		if existing_je.docstatus == 1:
-	# 			return
-
-	# 		if existing_je.docstatus == 0:
-	# 			return
-
-	# 		frappe.throw(
-	# 			f"Grower Advance Journal Entry {self.grower_advance_je} "
-	# 			"has been cancelled."
-	# 		)
-
-	# 	if not self.advance_amount or flt(self.advance_amount) <= 0:
-	# 		frappe.throw("Please enter a valid Grower Advance Amount.")
-
-	# 	if not self.advance_payment_mode:
-	# 		frappe.throw("Please select the Advance Payment Mode.")
-
-	# 	grower_advance_account = frappe.db.get_value(
-	# 		"Account",
-	# 		{
-	# 			"account_name": "Grower Advances",
-	# 			"company": self.company,
-	# 			"is_group": 0,
-	# 		},
-	# 		"name",
-	# 	)
-
-	# 	if not grower_advance_account:
-	# 		frappe.throw(
-	# 			f"Grower Advances account is not configured for {self.company}."
-	# 		)
-
-	# 	payment_account = frappe.db.get_value(
-	# 		"Mode of Payment Account",
-	# 		{
-	# 			"parent": self.advance_payment_mode,
-	# 			"company": self.company,
-	# 		},
-	# 		"default_account",
-	# 	)
-
-	# 	if not payment_account:
-	# 		frappe.throw(
-	# 			f"No account is configured for Mode of Payment "
-	# 			f"{self.advance_payment_mode} in company {self.company}."
-	# 		)
-
-	# 	account_type = frappe.db.get_value(
-	# 		"Account", payment_account, "account_type"
-	# 	)
-
-	# 	if account_type not in ("Cash", "Bank"):
-	# 		frappe.throw(
-	# 			f"{payment_account} must be a Cash or Bank account."
-	# 		)
-
-	# 	amount = flt(self.advance_amount)
-
-	# 	je = frappe.new_doc("Journal Entry")
-	# 	je.voucher_type = "Journal Entry"
-	# 	je.company = self.company
-	# 	je.posting_date = self.posting_date or frappe.utils.nowdate()
-	# 	je.user_remark = f"Grower advance against Lot Card {self.name}"
-
-	# 	# Debit Grower Advances
-	# 	je.append("accounts", {
-	# 		"account": grower_advance_account,
-	# 		"debit_in_account_currency": amount,
-	# 		"debit": amount,
-	# 	})
-
-	# 	# Credit selected Cash/Bank account
-	# 	je.append("accounts", {
-	# 		"account": payment_account,
-	# 		"credit_in_account_currency": amount,
-	# 		"credit": amount,
-	# 	})
-
-	# 	# Insert as Draft. Do NOT submit here.
-	# 	je.insert(ignore_permissions=True)
-
-	# 	self.db_set("grower_advance_je", je.name)
 
 	def create_grower_advance_je(self):
 		if not self.pay_grower_advance:
@@ -308,8 +236,8 @@ class LotCard(BuyingController):
 			frappe.throw("Please select the Advance Payment Mode.")
 
 		# Read the account from Auction Accounting Settings.
-		grower_advance_account = self.get_auction_account(
-			"grower_advances_account"
+		grower_payable_account = self.get_auction_account(
+			"grower_payable_account"
 		)
 
 		# Select Cash/Bank through the chosen Mode of Payment.
@@ -345,9 +273,11 @@ class LotCard(BuyingController):
 		je.posting_date = self.posting_date or frappe.utils.nowdate()
 		je.user_remark = f"Grower advance against Lot Card {self.name}"
 
-		# Debit Grower Advances.
+		# Debit the selected grower's payable.
 		je.append("accounts", {
-			"account": grower_advance_account,
+			"account": grower_payable_account,
+			"party_type": "Grower",
+			"party": self.grower_id,
 			"debit_in_account_currency": amount,
 			"debit": amount,
 		})
@@ -362,8 +292,7 @@ class LotCard(BuyingController):
 		# Save as Draft.
 		je.insert(ignore_permissions=True)
 
-		self.db_set("grower_advance_je", je.name)
-		
+		self.db_set("grower_advance_je", je.name)		
 	# Cancel the Grower Advance Journal Entry if it exists and is submitted.
 	def cancel_grower_advance_je(self):
 		if not self.grower_advance_je:
@@ -380,174 +309,152 @@ class LotCard(BuyingController):
 			frappe.throw(
 				f"Grower Advance Journal Entry {je.name} is still in Draft."
 			)
+	
 
-	# def create_consignment_gl_entries(self):
-	# 	from erpnext.accounts.general_ledger import make_gl_entries
-
-	# 	amount = flt(self.grand_total)
-
-	# 	if amount <= 0:
-	# 		frappe.throw("Lot Card value must be greater than zero.")
-
-	# 	asset_account = frappe.db.get_value(
-	# 		"Account",
-	# 		{
-	# 			"account_name": "Auction Consignment Asset",
-	# 			"company": self.company,
-	# 			"is_group": 0,
-	# 		},
-	# 		"name",
-	# 	)
-
-	# 	control_account = frappe.db.get_value(
-	# 		"Account",
-	# 		{
-	# 			"account_name": "Auction Consignment Control",
-	# 			"company": self.company,
-	# 			"is_group": 0,
-	# 		},
-	# 		"name",
-	# 	)
-
-	# 	if not asset_account:
-	# 		frappe.throw("Auction Consignment Asset account not found.")
-
-	# 	if not control_account:
-	# 		frappe.throw("Auction Consignment Control account not found.")
-
-	# 	gl_entries = []
-
-	# 	# Debit Auction Consignment Asset
-	# 	gl_entries.append({
-	# 		"account": asset_account,
-	# 		"debit": amount,
-	# 		"debit_in_account_currency": amount,
-	# 		"credit": 0,
-	# 		"credit_in_account_currency": 0,
-	# 		"against": control_account,
-	# 	})
-
-	# 	# Credit Auction Consignment Control
-	# 	gl_entries.append({
-	# 		"account": control_account,
-	# 		"debit": 0,
-	# 		"debit_in_account_currency": 0,
-	# 		"credit": amount,
-	# 		"credit_in_account_currency": amount,
-	# 		"against": asset_account,
-	# 	})
-
-	# 	for entry in gl_entries:
-	# 		entry.update({
-	# 			"company": self.company,
-	# 			"posting_date": self.posting_date,
-	# 			"voucher_type": self.doctype,
-	# 			"voucher_no": self.name,
-	# 			"fiscal_year": self.fiscal_year,
-	# 			"cost_center": self.cost_center,
-	# 			"is_opening": "No",
-	# 		})
-	# 	gl_entries = [frappe._dict(entry) for entry in gl_entries]
-
-	# 	make_gl_entries(gl_entries, merge_entries=False)
-	# 	# make_gl_entries(gl_entries, merge_entries=False)
-
-	def create_consignment_gl_entries(self):
+	def create_lot_card_gl_entries(self):
 		from erpnext.accounts.general_ledger import make_gl_entries
+		from erpnext.accounts.utils import get_fiscal_year
 
-		amount = flt(self.grand_total)
+		company_currency = frappe.get_cached_value(
+			"Company", self.company, "default_currency"
+		)
+
+		if (
+			self.currency != company_currency
+			or flt(self.conversion_rate) != 1
+		):
+			frappe.throw(
+				"This Lot Card posting supports company currency only."
+			)
+
+		amount = flt(
+			sum(
+				flt(row.qty) * flt(row.rate)
+				for row in self.items
+			),
+			self.precision("base_grand_total"),
+		)
 
 		if amount <= 0:
-			frappe.throw("Lot Card value must be greater than zero.")
+			frappe.throw("Lot Card item value must be greater than zero.")
 
-		# Fetch accounts from Auction Accounting Settings.
-		asset_account = self.get_auction_account(
-			"consignment_asset_account"
+		warehouse_account = self.get_auction_account(
+			"warehouse_account"
 		)
-		control_account = self.get_auction_account(
-			"consignment_control_account"
+		grower_payable_account = self.get_auction_account(
+			"grower_payable_account"
 		)
+
+		# Amounts below use company currency for both GL and account currency.
+		for account in (warehouse_account, grower_payable_account):
+			account_currency = frappe.db.get_value(
+				"Account", account, "account_currency"
+			)
+
+			if account_currency != company_currency:
+				frappe.throw(
+					f"Account {account} must use {company_currency}."
+				)
+
+		fiscal_year = get_fiscal_year(
+			self.posting_date,
+			company=self.company,
+		)[0]
+
+		common = {
+			"company": self.company,
+			"posting_date": self.posting_date,
+			"voucher_type": self.doctype,
+			"voucher_no": self.name,
+			"fiscal_year": fiscal_year,
+			"cost_center": self.cost_center,
+			"is_opening": "No",
+		}
 
 		gl_entries = [
-			# Debit Consignment Asset.
-			{
-				"account": asset_account,
+			frappe._dict({
+				**common,
+				"account": warehouse_account,
 				"debit": amount,
 				"debit_in_account_currency": amount,
 				"credit": 0,
 				"credit_in_account_currency": 0,
-				"against": control_account,
-			},
-			# Credit Consignment Control.
-			{
-				"account": control_account,
+				"against": grower_payable_account,
+			}),
+			frappe._dict({
+				**common,
+				"account": grower_payable_account,
+				"party_type": "Grower",
+				"party": self.grower_id,
 				"debit": 0,
 				"debit_in_account_currency": 0,
 				"credit": amount,
 				"credit_in_account_currency": amount,
-				"against": asset_account,
-			},
+				"against": warehouse_account,
+			}),
 		]
-
-		for entry in gl_entries:
-			entry.update({
-				"company": self.company,
-				"posting_date": self.posting_date,
-				"voucher_type": self.doctype,
-				"voucher_no": self.name,
-				"fiscal_year": self.fiscal_year,
-				"cost_center": self.cost_center,
-				"is_opening": "No",
-			})
-
-		gl_entries = [frappe._dict(entry) for entry in gl_entries]
 
 		make_gl_entries(gl_entries, merge_entries=False)
 
-	# def cancel_consignment_gl_entries(self):
-	# 	from erpnext.accounts.general_ledger import make_reverse_gl_entries
 
-	# 	make_reverse_gl_entries(
-	# 		frappe.get_all(
-	# 			"GL Entry",
-	# 			filters={
-	# 				"voucher_type": self.doctype,
-	# 				"voucher_no": self.name,
-	# 				"is_cancelled": 0,
-	# 				"account": [
-	# 					"in",
-	# 					[
-	# 						frappe.db.get_value(
-	# 							"Account",
-	# 							{
-	# 								"account_name": "Auction Consignment Asset",
-	# 								"company": self.company,
-	# 								"is_group": 0,
-	# 							},
-	# 							"name",
-	# 						),
-	# 						frappe.db.get_value(
-	# 							"Account",
-	# 							{
-	# 								"account_name": "Auction Consignment Control",
-	# 								"company": self.company,
-	# 								"is_group": 0,
-	# 							},
-	# 							"name",
-	# 						),
-	# 					],
-	# 				],
-	# 			},
-	# 			fields=["name"],
-	# 		)
-	# 	)
-
-	def cancel_consignment_gl_entries(self):
+	def cancel_lot_card_gl_entries(self):
 		from erpnext.accounts.general_ledger import make_reverse_gl_entries
 
 		make_reverse_gl_entries(
 			voucher_type=self.doctype,
 			voucher_no=self.name,
+		)
+
+	@frappe.whitelist()
+	def calculate_lot_totals(self):
+		total_quantity = 0
+		total_net_weight = 0
+		total_amount = 0
+
+		for row in self.items:
+			qty = flt(row.qty)
+			rate = flt(row.rate)
+
+			# Item amount = quantity × rate.
+			row.amount = flt(
+				qty * rate,
+				row.precision("amount"),
+			)
+
+			row.stock_qty = (
+				qty * flt(row.conversion_factor)
+			)
+
+			row.total_weight = flt(
+				row.stock_qty * flt(row.weight_per_unit),
+				row.precision("total_weight"),
+			)
+
+			total_quantity += qty
+			total_net_weight += row.total_weight
+			total_amount += row.amount
+
+		self.total_quantity = flt(
+			total_quantity,
+			self.precision("total_quantity"),
+		)
+
+		self.total_net_weight = flt(
+			total_net_weight,
+			self.precision("total_net_weight"),
+		)
+
+		self.total = flt(
+			total_amount,
+			self.precision("total"),
+		)
+
+		self.net_total = self.total
+
+		# Current flow uses company currency with exchange rate 1.
+		self.base_grand_total = flt(
+			self.total * flt(self.conversion_rate),
+			self.precision("base_grand_total"),
 		)
 
 @frappe.whitelist()
@@ -608,4 +515,5 @@ def make_stock_entry(source_name, target_doc=None):
 	)
 
 	return doclist
+
 
