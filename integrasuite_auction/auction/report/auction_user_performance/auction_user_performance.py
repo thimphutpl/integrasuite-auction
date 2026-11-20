@@ -1,267 +1,304 @@
-
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import flt, formatdate, getdate
+
+# Roles that may see every user's invoices. Replace "Auction Manager"
+# with your actual manager role.
+MANAGER_ROLES = {"System Manager", "Auction Manager"}
+
+DETAILED = "Detailed"
+BY_USER = "Summary by User"
+
+INVOICE_FIELDS = [
+    "name",
+    "posting_date",
+    "lot_card",
+    "bidder",
+    "bidder_name",
+    "total_qty",
+    "total",
+    "commission_amount",
+    "unloading_charges",
+    "currency",
+    "owner",
+]
 
 
 def execute(filters=None):
     filters = frappe._dict(filters or {})
+    validate_filters(filters)
 
-    columns = get_columns()
-    data = get_data(filters)
+    company_currency = frappe.get_cached_value(
+        "Company", filters.company, "default_currency"
+    )
+    can_view_all = user_can_view_all()
 
-    chart = get_chart(data)
-    report_summary = get_summary(data)
+    invoices = get_invoices(filters, can_view_all, company_currency)
+    users = aggregate_by_user(invoices)
+
+    if filters.get("view") == BY_USER:
+        columns = get_user_columns()
+        data = users
+    else:
+        columns = get_invoice_columns()
+        data = invoices
+
+    chart = get_chart(invoices, company_currency)
+    report_summary = get_report_summary(invoices, company_currency)
 
     return columns, data, None, chart, report_summary
 
 
+# --------------------------------------------------------------------------
+# Validation and permissions
+# --------------------------------------------------------------------------
 
-def get_columns():
-    return [
-        {
-            "label": _("Invoice Creator"),
-            "fieldname": "owner",
-            "fieldtype": "Link",
-            "options": "User",
-            "width": 200,
-        },
-        {
-            "label": _("Employee Name"),
-            "fieldname": "full_name",
-            "fieldtype": "Data",
-            "width": 160,
-        },
-        {
-            "label": _("Cash Sales"),
-            "fieldname": "cash_sales",
-            "fieldtype": "Currency",
-            "options": "currency",
-            "width": 130,
-        },
-        {
-            "label": _("Cash Commission"),
-            "fieldname": "cash_commission",
-            "fieldtype": "Currency",
-            "options": "currency",
-            "width": 140,
-        },
-        {
-            "label": _("Credit Sales"),
-            "fieldname": "credit_sales",
-            "fieldtype": "Currency",
-            "options": "currency",
-            "width": 130,
-        },
-        {
-            "label": _("Credit Commission"),
-            "fieldname": "credit_commission",
-            "fieldtype": "Currency",
-            "options": "currency",
-            "width": 150,
-        },
-        {
-            "label": _("Bank Transfer Sales"),
-            "fieldname": "bank_sales",
-            "fieldtype": "Currency",
-            "options": "currency",
-            "width": 150,
-        },
-        {
-            "label": _("Bank Transfer Commission"),
-            "fieldname": "bank_commission",
-            "fieldtype": "Currency",
-            "options": "currency",
-            "width": 170,
-        },
-        {
-            "label": _("Total Sales"),
-            "fieldname": "total_sales",
-            "fieldtype": "Currency",
-            "options": "currency",
-            "width": 140,
-        },
-        {
-            "label": _("Total Commission"),
-            "fieldname": "total_commission",
-            "fieldtype": "Currency",
-            "options": "currency",
-            "width": 150,
-        },
-        {
-            "label": _("Total Invoices"),
-            "fieldname": "total_invoices",
-            "fieldtype": "Int",
-            "width": 110,
-        },
-    ]
+def validate_filters(filters):
+    if not filters.company:
+        frappe.throw(_("Please select a Company."))
 
-def get_data(filters):
-    conditions = ["si.docstatus = 1"]
-    values = {}
+    if not filters.from_date or not filters.to_date:
+        frappe.throw(_("Please select From Date and To Date."))
 
-    if filters.get("from_date"):
-        conditions.append("si.posting_date >= %(from_date)s")
-        values["from_date"] = filters.from_date
+    if getdate(filters.from_date) > getdate(filters.to_date):
+        frappe.throw(_("From Date cannot be after To Date."))
 
-    if filters.get("to_date"):
-        conditions.append("si.posting_date <= %(to_date)s")
-        values["to_date"] = filters.to_date
 
-    if filters.get("user"):
-        conditions.append("u.name = %(user)s")
-        values["user"] = filters.user
+def user_can_view_all():
+    user = frappe.session.user
+    if user == "Administrator":
+        return True
+    return bool(MANAGER_ROLES & set(frappe.get_roles(user)))
 
-    if filters.get("currency"):
-        conditions.append("si.currency = %(currency)s")
-        values["currency"] = filters.currency
 
-    where_clause = " AND ".join(conditions)
+# --------------------------------------------------------------------------
+# Data
+# --------------------------------------------------------------------------
 
-    return frappe.db.sql(
-        f"""
-        SELECT
-            u.name AS owner,
-            u.full_name,
-            si.currency,
+def get_invoices(filters, can_view_all, company_currency):
+    invoice_filters = {
+        "company": filters.company,
+        "docstatus": 1,
+        "posting_date": ["between", [filters.from_date, filters.to_date]],
+    }
 
-            -- Cash
-            COALESCE(SUM(
-                CASE
-                    WHEN si.commission_payment_mode = 'Cash'
-                    THEN si.grand_total ELSE 0
-                END
-            ), 0) AS cash_sales,
+    # Ownership is enforced here, never trusted from the browser.
+    if can_view_all:
+        if filters.get("created_by"):
+            invoice_filters["owner"] = filters.created_by
+    else:
+        invoice_filters["owner"] = frappe.session.user
 
-            COALESCE(SUM(
-                CASE
-                    WHEN si.commission_payment_mode = 'Cash'
-                    THEN si.commission_amount ELSE 0
-                END
-            ), 0) AS cash_commission,
+    for fieldname in ("bidder", "lot_card"):
+        if filters.get(fieldname):
+            invoice_filters[fieldname] = filters.get(fieldname)
 
-            -- Credit (blank payment mode)
-            COALESCE(SUM(
-                CASE
-                    WHEN IFNULL(si.commission_payment_mode, '') = ''
-                    THEN si.grand_total ELSE 0
-                END
-            ), 0) AS credit_sales,
-
-            COALESCE(SUM(
-                CASE
-                    WHEN IFNULL(si.commission_payment_mode, '') = ''
-                    THEN si.commission_amount ELSE 0
-                END
-            ), 0) AS credit_commission,
-
-            -- Bank Transfer
-            COALESCE(SUM(
-                CASE
-                    WHEN si.commission_payment_mode = 'Bank transfer'
-                    THEN si.grand_total ELSE 0
-                END
-            ), 0) AS bank_sales,
-
-            COALESCE(SUM(
-                CASE
-                    WHEN si.commission_payment_mode = 'Bank transfer'
-                    THEN si.commission_amount ELSE 0
-                END
-            ), 0) AS bank_commission,
-
-            -- Overall totals
-            COALESCE(SUM(si.grand_total), 0) AS total_sales,
-
-            COALESCE(SUM(si.commission_amount), 0)
-                AS total_commission,
-
-            COUNT(si.name) AS total_invoices
-
-        FROM `tabUser` u
-
-        LEFT JOIN `tabAuction Invoice` si
-            ON si.owner = u.name
-            AND {where_clause}
-
-        WHERE u.enabled = 1
-          AND u.user_type = 'System User'
-
-        GROUP BY
-            u.name,
-            u.full_name,
-            si.currency
-
-        ORDER BY
-            total_commission DESC,
-            total_sales DESC
-        """,
-        values,
-        as_dict=True,
+    # get_list applies document-level permissions on top of the filters.
+    rows = frappe.get_list(
+        "Auction Invoice",
+        filters=invoice_filters,
+        fields=INVOICE_FIELDS,
+        order_by="posting_date desc, creation desc",
+        page_length=0,
     )
 
-def get_chart(data):
-    # Do not compare monetary values from different currencies.
-    currencies = {row.currency for row in data}
+    full_names = get_full_names({row.owner for row in rows})
 
-    if not data or len(currencies) != 1:
-        return None
+    for row in rows:
+        row.currency = row.currency or company_currency
+        row.owner_name = full_names.get(row.owner) or row.owner
+        row.grower_net = (
+            flt(row.total)
+            - flt(row.commission_amount)
+            - flt(row.unloading_charges)
+        )
+        row.commission_percent = percent(row.commission_amount, row.total)
 
+    return rows
+
+
+def get_full_names(users):
+    if not users:
+        return {}
+
+    # Reading names of users who already appear in the permitted data.
     return {
-        "data": {
-            "labels": [
-                row.full_name or row.owner
-                for row in data[:10]
-            ],
-            "datasets": [
-                {
-                    "name": _("Total Commission"),
-                    "values": [
-                        flt(row.total_commission)
-                        for row in data[:10]
-                    ],
-                },
-                {
-                    "name": _("Total Sales"),
-                    "values": [
-                        flt(row.total_sales)
-                        for row in data[:10]
-                    ],
-                },
-            ],
-        },
-        "type": "bar",
-        "fieldtype": "Currency",
+        d.name: d.full_name
+        for d in frappe.get_all(
+            "User",
+            filters={"name": ["in", list(users)]},
+            fields=["name", "full_name"],
+        )
     }
 
 
-def get_summary(data):
-    currencies = {row.currency for row in data}
+def aggregate_by_user(invoices):
+    grouped = {}
 
-    if not data or len(currencies) != 1:
-        return []
+    for row in invoices:
+        entry = grouped.setdefault(
+            row.owner,
+            frappe._dict(
+                owner=row.owner,
+                owner_name=row.owner_name,
+                invoice_count=0,
+                total_qty=0.0,
+                total=0.0,
+                commission_amount=0.0,
+                unloading_charges=0.0,
+                grower_net=0.0,
+                currency=row.currency,
+            ),
+        )
+        entry.invoice_count += 1
+        entry.total_qty += flt(row.total_qty)
+        entry.total += flt(row.total)
+        entry.commission_amount += flt(row.commission_amount)
+        entry.unloading_charges += flt(row.unloading_charges)
+        entry.grower_net += flt(row.grower_net)
 
-    currency = next(iter(currencies))
+    result = sorted(grouped.values(), key=lambda d: d.total, reverse=True)
+
+    for entry in result:
+        entry.avg_invoice_value = (
+            entry.total / entry.invoice_count if entry.invoice_count else 0
+        )
+        entry.commission_percent = percent(entry.commission_amount, entry.total)
+
+    return result
+
+
+def percent(part, whole):
+    return flt(part) / flt(whole) * 100 if flt(whole) else 0.0
+
+
+# --------------------------------------------------------------------------
+# Columns
+# --------------------------------------------------------------------------
+
+def currency_col(label, fieldname, width=140):
+    return {
+        "label": _(label),
+        "fieldname": fieldname,
+        "fieldtype": "Currency",
+        "options": "currency",
+        "width": width,
+    }
+
+
+def hidden_currency_col():
+    return {
+        "label": _("Currency"),
+        "fieldname": "currency",
+        "fieldtype": "Link",
+        "options": "Currency",
+        "hidden": 1,
+    }
+
+
+def get_invoice_columns():
+    return [
+        {"label": _("Posting Date"), "fieldname": "posting_date",
+         "fieldtype": "Date", "width": 110},
+        {"label": _("Auction Invoice"), "fieldname": "name",
+         "fieldtype": "Link", "options": "Auction Invoice", "width": 190},
+        {"label": _("Lot Card"), "fieldname": "lot_card",
+         "fieldtype": "Link", "options": "Lot Card", "width": 170},
+        {"label": _("Bidder"), "fieldname": "bidder",
+         "fieldtype": "Link", "options": "Bidder", "width": 170},
+        {"label": _("Bidder Name"), "fieldname": "bidder_name",
+         "fieldtype": "Data", "width": 180},
+        {"label": _("Total Quantity"), "fieldname": "total_qty",
+         "fieldtype": "Float", "width": 120},
+        currency_col("Sales Value", "total"),
+        currency_col("Commission", "commission_amount", 130),
+        {"label": _("Commission %"), "fieldname": "commission_percent",
+         "fieldtype": "Percent", "width": 110},
+        currency_col("Unloading Charges", "unloading_charges", 150),
+        currency_col("Grower Net Before Advance", "grower_net", 200),
+        {"label": _("Created By"), "fieldname": "owner",
+         "fieldtype": "Link", "options": "User", "width": 200},
+        {"label": _("Creator Name"), "fieldname": "owner_name",
+         "fieldtype": "Data", "width": 160},
+        hidden_currency_col(),
+    ]
+
+
+def get_user_columns():
+    return [
+        {"label": _("User"), "fieldname": "owner",
+         "fieldtype": "Link", "options": "User", "width": 220},
+        {"label": _("Name"), "fieldname": "owner_name",
+         "fieldtype": "Data", "width": 180},
+        {"label": _("Invoices"), "fieldname": "invoice_count",
+         "fieldtype": "Int", "width": 90},
+        {"label": _("Total Quantity"), "fieldname": "total_qty",
+         "fieldtype": "Float", "width": 120},
+        currency_col("Sales Value", "total"),
+        currency_col("Avg Invoice Value", "avg_invoice_value", 150),
+        currency_col("Commission", "commission_amount", 130),
+        {"label": _("Commission %"), "fieldname": "commission_percent",
+         "fieldtype": "Percent", "width": 110},
+        currency_col("Unloading Charges", "unloading_charges", 150),
+        currency_col("Grower Net Before Advance", "grower_net", 200),
+        hidden_currency_col(),
+    ]
+
+
+# --------------------------------------------------------------------------
+# Chart and summary
+# --------------------------------------------------------------------------
+
+def get_chart(invoices, currency):
+    """Daily trend of sales value and commission."""
+    if not invoices:
+        return None
+
+    daily = {}
+    for row in invoices:
+        day = daily.setdefault(
+            getdate(row.posting_date), {"total": 0.0, "commission": 0.0}
+        )
+        day["total"] += flt(row.total)
+        day["commission"] += flt(row.commission_amount)
+
+    dates = sorted(daily)
+
+    return {
+        "data": {
+            "labels": [formatdate(d) for d in dates],
+            "datasets": [
+                {"name": _("Sales Value"),
+                 "values": [daily[d]["total"] for d in dates]},
+                {"name": _("Commission"),
+                 "values": [daily[d]["commission"] for d in dates]},
+            ],
+        },
+        "type": "line",
+        "fieldtype": "Currency",
+        "options": "currency",
+        "currency": currency,
+    }
+
+
+def get_report_summary(invoices, currency):
+    def total_of(field):
+        return sum(flt(row.get(field)) for row in invoices)
+
+    sales = total_of("total")
+    commission = total_of("commission_amount")
 
     return [
-        {
-            "value": sum(row.total_invoices for row in data),
-            "indicator": "Blue",
-            "label": _("Total Invoices"),
-            "datatype": "Int",
-        },
-        {
-            "value": sum(flt(row.total_sales) for row in data),
-            "indicator": "Blue",
-            "label": _("Total Sales"),
-            "datatype": "Currency",
-            "currency": currency,
-        },
-        {
-            "value": sum(flt(row.total_commission) for row in data),
-            "indicator": "Green",
-            "label": _("Total Commission"),
-            "datatype": "Currency",
-            "currency": currency,
-        },
+        {"label": _("Invoices"), "value": len(invoices),
+         "datatype": "Int", "indicator": "Blue"},
+        {"label": _("Sales Value"), "value": sales,
+         "datatype": "Currency", "currency": currency, "indicator": "Green"},
+        {"label": _("Commission Income"), "value": commission,
+         "datatype": "Currency", "currency": currency, "indicator": "Blue"},
+        {"label": _("Avg Commission %"), "value": percent(commission, sales),
+         "datatype": "Percent", "indicator": "Blue"},
+        {"label": _("Unloading Charges"), "value": total_of("unloading_charges"),
+         "datatype": "Currency", "currency": currency, "indicator": "Orange"},
+        {"label": _("Grower Net Before Advance"), "value": total_of("grower_net"),
+         "datatype": "Currency", "currency": currency, "indicator": "Green"},
     ]

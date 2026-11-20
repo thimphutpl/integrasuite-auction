@@ -24,6 +24,10 @@
   "dzongkhag",
   "gewog",
   "village",
+  "column_break_koyg",
+  "district",
+  "city",
+  "street_address",
   "defaults_tab",
   "default_currency",
   "default_bank_account",
@@ -651,18 +655,21 @@
    "options": "Country"
   },
   {
+   "depends_on": "eval:doc.country == \"Bhutan\"",
    "fieldname": "dzongkhag",
    "fieldtype": "Link",
    "label": "Dzongkhag",
    "options": "Dzongkhag"
   },
   {
+   "depends_on": "eval:doc.country == \"Bhutan\"",
    "fieldname": "gewog",
    "fieldtype": "Link",
    "label": "Gewog",
    "options": "Gewog"
   },
   {
+   "depends_on": "eval:doc.country == \"Bhutan\"",
    "fieldname": "village",
    "fieldtype": "Link",
    "label": "Village",
@@ -678,12 +685,34 @@
    "fieldname": "contact_no",
    "fieldtype": "Data",
    "label": "Contact No."
+  },
+  {
+   "fieldname": "column_break_koyg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.country != \"Bhutan\" && doc.country",
+   "fieldname": "district",
+   "fieldtype": "Data",
+   "label": "District"
+  },
+  {
+   "depends_on": "eval:doc.country != \"Bhutan\" && doc.country",
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City"
+  },
+  {
+   "depends_on": "eval:doc.country != \"Bhutan\" && doc.country",
+   "fieldname": "street_address",
+   "fieldtype": "Data",
+   "label": "Street Address "
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-10 10:01:41.792907",
+ "modified": "2026-11-19 11:13:45.274944",
  "modified_by": "Administrator",
  "module": "Auction",
  "name": "Bidder",

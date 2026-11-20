@@ -27,6 +27,7 @@ class Bidder(Document):
 		bidder_group: DF.Link | None
 		bidder_name: DF.Data
 		bidder_type: DF.Literal["Company", "Individual", "Partnership"]
+		city: DF.Data | None
 		companies: DF.Table[AllowedToTransactWith]
 		contact_no: DF.Data | None
 		country: DF.Link | None
@@ -41,6 +42,7 @@ class Bidder(Document):
 		default_price_list: DF.Link | None
 		default_sales_partner: DF.Link | None
 		disabled: DF.Check
+		district: DF.Data | None
 		dn_required: DF.Check
 		dzongkhag: DF.Link | None
 		email_id: DF.ReadOnly | None
@@ -67,6 +69,7 @@ class Bidder(Document):
 		represents_company: DF.Link | None
 		sales_team: DF.Table[SalesTeam]
 		so_required: DF.Check
+		street_address: DF.Data | None
 		supplier_numbers: DF.Table[SupplierNumberAtCustomer]
 		tax_category: DF.Link | None
 		tax_id: DF.Data | None

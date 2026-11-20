@@ -9,6 +9,14 @@ app_license = "mit"
 # bodies instead of form-encoded, per-key JSON-stringified values.
 use_json_request_body = True
 
+add_to_apps_screen = [
+    {
+        "name": "integrasuite_auction",
+        "title": "Auction",
+        "logo": "/files/Auction_logo.png",
+        "route": "/desk/auction",
+    }
+]
 # Apps
 # ------------------
 
